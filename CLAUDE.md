@@ -3,8 +3,7 @@ Read the project status first: @STAND.md
 # RayBan Claude – Notes for Claude Code
 
 - Language: replies, code comments, UI texts and docs in **English**.
-- Git texts: commit messages end with the line `Written with Claude 🤖` (before the Co-Authored-By);
-  the README has the line as its footer. No update function is planned.
+- No update function is planned.
 - Repo: public, https://github.com/MoinMornhart/RayBanClaude
 - TypeScript (`channel/`, `server/`): follow the rules of the *typescript-patterns-enforcer* plugin
   (no magic numbers, no loops/`switch`, every regex with an example + regex101 link).

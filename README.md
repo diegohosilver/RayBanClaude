@@ -314,7 +314,3 @@ original code © 2026 MR Dula Solutions. Use of the Meta Wearables Device Access
 
 <sub>Unofficial project – not affiliated with Meta Platforms, Ray-Ban/EssilorLuxottica or Anthropic.
 Ray-Ban and Meta are trademarks of their owners, Claude is a trademark of Anthropic.</sub>
-
----
-
-<p align="center">Written with Claude 🤖</p>

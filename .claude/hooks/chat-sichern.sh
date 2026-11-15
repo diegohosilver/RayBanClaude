@@ -110,11 +110,6 @@ g("add", "--", os.path.relpath(datei, projekt))
 if g("diff", "--cached", "--quiet", "--", os.path.relpath(datei, projekt)).returncode == 0:
     raise SystemExit(0)
 nachricht = "Chat history saved"
-try:
-    if "Written with Claude" in open(os.path.join(projekt, "CLAUDE.md"), encoding="utf-8").read():
-        nachricht += "\n\nWritten with Claude 🤖"
-except Exception:
-    pass
 g("commit", "-m", nachricht, "--", os.path.relpath(datei, projekt))
 PY
 exit 0

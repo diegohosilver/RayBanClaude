@@ -53,7 +53,6 @@ New in 2.1.0 (from the branches of 20.10., merged into `main` on 24.10.):
 
 ## Philip's requirements
 - Repo **public** (github.com/MoinMornhart/RayBanClaude), MIT license.
-- Commit messages end with `Written with Claude 🤖` (before Co-Authored-By); README footer likewise.
 - **No update function** planned.
 - Everything in English (replies, comments, app interface, docs).
 
