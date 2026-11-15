@@ -212,7 +212,7 @@ interface Attachment { readonly name: string; readonly url: string }
 type WireOut =
   | { readonly type: 'status'; readonly status: 'connected'; readonly version: string; readonly tts: boolean }
   | { readonly type: 'ack'; readonly id: string }
-  | { readonly type: 'reply'; readonly id: string; readonly text: string; readonly audio_url?: string; readonly reply_to?: string; readonly files?: readonly Attachment[] }
+  | { readonly type: 'reply'; readonly id: string; readonly text: string; readonly audio_url?: string; readonly audio_b64?: string; readonly reply_to?: string; readonly files?: readonly Attachment[] }
   | { readonly type: 'edit'; readonly id: string; readonly text: string; readonly audio_url?: string }
   | { readonly type: 'capture_request'; readonly id: string; readonly reason?: string }
   | { readonly type: 'permission_request'; readonly request_id: string; readonly tool_name: string; readonly description: string; readonly input_preview: string }
@@ -486,7 +486,9 @@ const TOOL_HANDLERS: Readonly<Record<string, (args: ToolArgs) => Promise<ToolRes
     const files = stageAttachments(args.files)
     const audioUrl = await generateTTS(text)
     const replyTo = isValidId(args.reply_to) ? args.reply_to : undefined
-    const sent = broadcast({ type: 'reply', id, text, audio_url: audioUrl, reply_to: replyTo, files: files.length ? files : undefined })
+    // The audio also travels inside the reply: the WebSocket works on every network setup, while a separate HTTP download can be blocked on the iPhone (App Transport Security)
+    const audioB64 = audioUrl ? readFileSync(join(OUTBOX_DIR, audioUrl.slice(FILES_PREFIX.length))).toString('base64') : undefined
+    const sent = broadcast({ type: 'reply', id, text, audio_url: audioUrl, audio_b64: audioB64, reply_to: replyTo, files: files.length ? files : undefined })
     logActivity({ direction: 'out', source: 'claude', text })
     saveHistory('claude', text)
     log(`→ Reply to ${sent} app(s): ${preview(text)}`)
