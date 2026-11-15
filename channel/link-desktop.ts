@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 /**
- * Verknüpft RayBan Claude mit der Claude-Desktop-App auf diesem PC (oder hebt das auf).
+ * Links RayBan Claude to the Claude desktop app on this PC (or removes the link).
  *
- *   bun link-desktop.ts           → trägt die Brücke (bridge.ts) in claude_desktop_config.json ein
- *   bun link-desktop.ts --remove  → trägt sie wieder aus
+ *   bun link-desktop.ts           → registers the bridge (bridge.ts) in claude_desktop_config.json
+ *   bun link-desktop.ts --remove  → removes it again
  *
- * Danach die Claude-App einmal neu starten. Unterstützt die normale Windows-Installation,
- * die Microsoft-Store-Version sowie macOS und Linux. Vor der ersten Änderung wird eine
- * Sicherungskopie der Konfiguration angelegt.
+ * Then restart the Claude app once. Supports the regular Windows installation,
+ * the Microsoft Store version, as well as macOS and Linux. Before the first change a
+ * backup copy of the configuration is created.
  */
 
 import { copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'fs'
@@ -23,7 +23,7 @@ const remove = process.argv.includes('--remove')
 
 type Config = Record<string, unknown> & { mcpServers?: Record<string, unknown> }
 
-/** Ordner der Claude-Desktop-App je Betriebssystem (nur die, die es wirklich gibt) */
+/** Claude desktop app folders per operating system (only those that actually exist) */
 function configDirs(): string[] {
   const home = homedir()
   const appData = process.env.APPDATA ?? join(home, 'AppData', 'Roaming')
@@ -44,8 +44,8 @@ function configDirs(): string[] {
 function readConfig(file: string): Config {
   if (!existsSync(file)) return {}
   const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'))
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(`${file} ist kein JSON-Objekt`)
-  return parsed as Config // geprüft: einfaches Objekt
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(`${file} is not a JSON object`)
+  return parsed as Config // checked: plain object
 }
 
 function update(dir: string): string {
@@ -55,7 +55,7 @@ function update(dir: string): string {
   if (remove) {
     delete servers[SERVER_KEY]
   } else {
-    // Bun mit vollem Pfad – die Claude-App kennt den PATH der Kommandozeile nicht
+    // Bun with full path – the Claude app does not know the command line's PATH
     servers[SERVER_KEY] = { command: process.execPath, args: [join(import.meta.dir, 'bridge.ts')] }
   }
   if (existsSync(file) && !existsSync(file + BACKUP_SUFFIX)) copyFileSync(file, file + BACKUP_SUFFIX)
@@ -65,15 +65,15 @@ function update(dir: string): string {
 
 const dirs = configDirs()
 if (!dirs.length) {
-  console.log('Claude-Desktop-App nicht gefunden – überspringe die Verknüpfung (später: claude.ai/download, dann setup.cmd erneut).')
+  console.log('Claude desktop app not found – skipping the link (later: claude.ai/download, then run setup.cmd again).')
   process.exit(0)
 }
 try {
   const files = dirs.map(update)
   console.log(remove
-    ? `Verknüpfung mit der Claude-App entfernt (${files.length} Konfiguration/en).`
-    : `Mit der Claude-App verknüpft (${files.length} Konfiguration/en). Claude-App einmal neu starten – dann kennt sie das Werkzeug „Brille“.`)
+    ? `Link to the Claude app removed (${files.length} configuration(s)).`
+    : `Linked to the Claude app (${files.length} configuration(s)). Restart the Claude app once – then it will know the “Brille” (glasses) tool.`)
 } catch (e) {
-  console.error(`Verknüpfung fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`)
+  console.error(`Linking failed: ${e instanceof Error ? e.message : String(e)}`)
   process.exit(1)
 }

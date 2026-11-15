@@ -1,5 +1,5 @@
 /**
- * Netzwerk-Hilfen: LAN-Adresse fürs Handy finden und lokale Anfragen erkennen.
+ * Network helpers: find the LAN address for the phone and detect local requests.
  */
 
 import { networkInterfaces } from 'os'
@@ -14,22 +14,22 @@ export interface LanIp {
   readonly rank: number
 }
 
-/** Adressbereiche in absteigender Priorität: Heimnetz zuerst, Tailscale zuletzt. */
+/** Address ranges in descending priority: home network first, Tailscale last. */
 const RANGE_PRIORITY: readonly RegExp[] = [LAN_192, LAN_10, LAN_172, CGNAT_100]
 const IPV4 = 'IPv4'
-/** Abstand zwischen zwei Bereichen, damit der WLAN-Bonus nie einen Bereich überspringt. */
+/** Gap between two ranges so the Wi-Fi bonus never skips a range. */
 const RANK_STEP = 2
 
 function rankAddress(address: string, iface: string): number {
   const rangeIndex = RANGE_PRIORITY.findIndex(r => r.test(address))
   const rangeRank = rangeIndex === -1 ? RANGE_PRIORITY.length : rangeIndex
-  // Virtuelle Adapter (WSL, Hyper-V, VMs) ans Ende – das Handy erreicht sie nie
+  // Virtual adapters (WSL, Hyper-V, VMs) go last – the phone never reaches them
   const virtualPenalty = VIRTUAL_IFACE.test(iface) && !TAILSCALE_IFACE.test(iface) ? RANGE_PRIORITY.length + 1 : 0
   const wifiBonus = WIFI_IFACE.test(iface) ? -1 : 0
   return (rangeRank + virtualPenalty) * RANK_STEP + wifiBonus
 }
 
-/** Alle IPv4-Adressen dieses PCs, beste Kandidaten fürs Handy zuerst. */
+/** All IPv4 addresses of this PC, best candidates for the phone first. */
 export function listLanIps(): readonly LanIp[] {
   return Object.entries(networkInterfaces())
     .flatMap(([iface, nets]) => (nets ?? []).map(net => ({ iface, net })))
@@ -39,8 +39,8 @@ export function listLanIps(): readonly LanIp[] {
 }
 
 /**
- * Tailscale-Adresse dieses PCs (100.64.0.0/10), falls Tailscale läuft. Darüber
- * erreicht das iPhone den PC auch unterwegs – verschlüsselt, ohne Port-Freigabe.
+ * Tailscale address of this PC (100.64.0.0/10), if Tailscale is running. Through it
+ * the iPhone can reach the PC on the go too – encrypted, without port forwarding.
  */
 export function findTailscaleIp(ips: readonly LanIp[] = listLanIps()): string | undefined {
   const byName = ips.find(ip => TAILSCALE_IFACE.test(ip.iface) && CGNAT_100.test(ip.address))
@@ -56,8 +56,8 @@ function isLocalHostname(hostname: string): boolean {
 }
 
 /**
- * Nur echte Anfragen vom eigenen PC: Absender-IP ist Loopback, Host-Header ist
- * localhost (Schutz gegen DNS-Rebinding) und ein evtl. Origin gehört zum Dashboard.
+ * Only genuine requests from this PC: sender IP is loopback, Host header is
+ * localhost (protection against DNS rebinding) and any Origin belongs to the dashboard.
  */
 export function isLocalRequest(req: Request, remoteIp: string, port: number): boolean {
   if (!LOOPBACK.has(remoteIp)) return false

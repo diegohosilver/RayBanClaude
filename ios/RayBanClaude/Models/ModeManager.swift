@@ -15,7 +15,7 @@ final class ModeManager: ObservableObject {
         loadModes()
     }
 
-    /// Modi für die Auswahlleiste (ausgeblendete eingebaute Modi fehlen)
+    /// Modes for the selection bar (hidden built-in modes are omitted)
     var visibleModes: [VisionMode] {
         allModes.filter { !($0.isBuiltIn && hiddenBuiltInModeIds.contains($0.id)) }
     }
@@ -24,7 +24,7 @@ final class ModeManager: ObservableObject {
         allModes.filter { !$0.isBuiltIn }
     }
 
-    // MARK: - Eigene Modi
+    // MARK: - Custom modes
 
     func addCustomMode(name: String, icon: String, color: String, prompt: String, quickActions: [String]) {
         let mode = VisionMode(
@@ -58,7 +58,7 @@ final class ModeManager: ObservableObject {
             hiddenBuiltInModeIds.remove(id)
         } else {
             hiddenBuiltInModeIds.insert(id)
-            // Der aktive Modus darf nicht unsichtbar werden
+            // The active mode must not become hidden
             if activeMode.id == id { setActiveMode(VisionMode.general) }
         }
         UserDefaults.standard.set(Array(hiddenBuiltInModeIds), forKey: Self.hiddenModesKey)
@@ -68,7 +68,7 @@ final class ModeManager: ObservableObject {
         !hiddenBuiltInModeIds.contains(id)
     }
 
-    // MARK: - Speichern / Laden
+    // MARK: - Saving / Loading
 
     private func loadModes() {
         var modes = VisionMode.builtInModes
@@ -78,7 +78,7 @@ final class ModeManager: ObservableObject {
         }
         allModes = modes
         hiddenBuiltInModeIds = Set(UserDefaults.standard.stringArray(forKey: Self.hiddenModesKey) ?? [])
-        // „Allgemein“ kann nie ausgeblendet werden
+        // "General" can never be hidden
         hiddenBuiltInModeIds.remove(VisionMode.general.id)
 
         let savedId = UserDefaults.standard.string(forKey: Self.activeModeKey)

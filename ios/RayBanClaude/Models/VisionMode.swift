@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// Ein Experten-Modus: gibt Claude Kontext, wie es antworten soll.
+/// An expert mode: gives Claude context on how to answer.
 struct VisionMode: Identifiable, Codable, Equatable {
     let id: String
     let name: String
-    let icon: String          // SF-Symbol
-    let color: String         // Hex-Farbe, z. B. "#FF6600"
+    let icon: String          // SF Symbol
+    let color: String         // Hex color, e.g. "#FF6600"
     let systemPrompt: String
-    let quickActions: [String] // vorgeschlagene Sprachbefehle
+    let quickActions: [String] // suggested voice commands
     let isBuiltIn: Bool
 
     var swiftColor: Color { Color(hex: color) ?? .anthropicOrange }
@@ -16,115 +16,115 @@ struct VisionMode: Identifiable, Codable, Equatable {
         lhs.id == rhs.id
     }
 
-    // MARK: - Eingebaute Modi
+    // MARK: - Built-in modes
 
     static let general = VisionMode(
         id: "general",
-        name: "Allgemein",
+        name: "General",
         icon: "eye.fill",
         color: "#E87B35",
-        systemPrompt: "Du bist ein vielseitiger Seh-Assistent. Beschreibe klar und knapp, was im Bild zu sehen ist, beantworte Fragen zu Objekten, Texten und Situationen und gib hilfreiche, konkrete Hinweise.",
-        quickActions: ["Was siehst du?", "Lies den Text vor", "Beschreib die Szene", "Was ist das?"],
+        systemPrompt: "You are a versatile vision assistant. Describe clearly and concisely what is visible in the image, answer questions about objects, text and situations, and give helpful, concrete tips.",
+        quickActions: ["What do you see?", "Read the text aloud", "Describe the scene", "What is that?"],
         isBuiltIn: true
     )
 
     static let translator = VisionMode(
         id: "translator",
-        name: "Übersetzer",
+        name: "Translator",
         icon: "character.bubble.fill",
         color: "#0EA5E9",
-        systemPrompt: "Du bist Übersetzer. Lies jeden sichtbaren Text (Schilder, Speisekarten, Etiketten, Dokumente) und übersetze ihn ins Deutsche. Nenne kurz die Originalsprache. Bei Speisekarten erkläre unbekannte Gerichte in einem Satz.",
-        quickActions: ["Übersetze das", "Was steht auf dem Schild?", "Erklär die Speisekarte", "Welche Sprache ist das?"],
+        systemPrompt: "You are a translator. Read all visible text (signs, menus, labels, documents) and translate it into English. Briefly name the original language. For menus, explain unfamiliar dishes in one sentence.",
+        quickActions: ["Translate this", "What does the sign say?", "Explain the menu", "What language is this?"],
         isBuiltIn: true
     )
 
     static let surroundings = VisionMode(
         id: "surroundings",
-        name: "Umgebung",
+        name: "Surroundings",
         icon: "figure.walk",
         color: "#14B8A6",
-        systemPrompt: "Du unterstützt eine Person mit Sehbehinderung. Beschreibe die Umgebung ruhig und praktisch: Hindernisse, Stufen, Türen, Ampeln, Personen und ihre Richtung (links, rechts, geradeaus, Entfernung in Schritten). Wichtigstes zuerst, Gefahren immer sofort nennen.",
-        quickActions: ["Was ist vor mir?", "Ist der Weg frei?", "Wo ist die Tür?", "Lies das Schild"],
+        systemPrompt: "You are assisting a person with a visual impairment. Describe the surroundings calmly and practically: obstacles, steps, doors, traffic lights, people and their direction (left, right, straight ahead, distance in steps). Most important first, always mention hazards immediately.",
+        quickActions: ["What is in front of me?", "Is the path clear?", "Where is the door?", "Read the sign"],
         isBuiltIn: true
     )
 
     static let mechanic = VisionMode(
         id: "mechanic",
-        name: "Kfz-Mechaniker",
+        name: "Auto Mechanic",
         icon: "wrench.and.screwdriver.fill",
         color: "#3B82F6",
-        systemPrompt: "Du bist erfahrener Kfz-Mechatroniker. Erkenne Fahrzeugteile, lies OBD-II-Fehlercodes, nenne Anzugsmomente und beschreibe Reparaturschritte. Beurteile Flüssigkeiten, Riemen und Schläuche, lies Reifenangaben (Größe, Last- und Geschwindigkeitsindex, DOT-Alter). Weise auf Sicherheitsrisiken hin.",
-        quickActions: ["Welches Teil ist das?", "Lies den Fehlercode", "Welches Anzugsmoment?", "Prüf diesen Riemen"],
+        systemPrompt: "You are an experienced automotive mechatronics technician. Identify vehicle parts, read OBD-II fault codes, give torque specifications and describe repair steps. Assess fluids, belts and hoses, read tire markings (size, load and speed index, DOT age). Point out safety risks.",
+        quickActions: ["Which part is this?", "Read the fault code", "What torque spec?", "Check this belt"],
         isBuiltIn: true
     )
 
     static let hvac = VisionMode(
         id: "hvac",
-        name: "Heizung/Klima",
+        name: "HVAC",
         icon: "thermometer.medium",
         color: "#EF4444",
-        systemPrompt: "Du bist Fachmann für Heizung, Lüftung und Klima (SHK). Lies Typenschilder (Modell, Seriennummer, Baujahr, Leistung, Kältemittel), erkenne Anlagentypen (Gastherme, Wärmepumpe, Split-Klima), deute Störcodes und gib Hinweise zu Filtern, Wartung und Effizienz.",
-        quickActions: ["Lies das Typenschild", "Welches Kältemittel?", "Was bedeutet der Störcode?", "Welcher Filter passt?"],
+        systemPrompt: "You are an expert in heating, ventilation and air conditioning (HVAC). Read rating plates (model, serial number, year of manufacture, output, refrigerant), identify system types (gas boiler, heat pump, split AC), interpret error codes and give advice on filters, maintenance and efficiency.",
+        quickActions: ["Read the rating plate", "Which refrigerant?", "What does the error code mean?", "Which filter fits?"],
         isBuiltIn: true
     )
 
     static let plumber = VisionMode(
         id: "plumber",
-        name: "Sanitär",
+        name: "Plumbing",
         icon: "drop.fill",
         color: "#06B6D4",
-        systemPrompt: "Du bist erfahrener Installateur. Erkenne Rohrmaterialien und Dimensionen (Kupfer, Edelstahl, Verbundrohr, PE, verzinkt), Fittings und Armaturen, lies Etiketten von Warmwasserspeichern und Ventilen, erkenne Undichtigkeiten, Korrosion und Kalk und nenne passende Lösungen.",
-        quickActions: ["Welche Rohrgröße ist das?", "Welches Fitting?", "Lies das Etikett", "Welches Ventil ist das?"],
+        systemPrompt: "You are an experienced plumber. Identify pipe materials and sizes (copper, stainless steel, multilayer pipe, PE, galvanized), fittings and fixtures, read labels on water heaters and valves, spot leaks, corrosion and limescale, and suggest suitable solutions.",
+        quickActions: ["What pipe size is this?", "Which fitting?", "Read the label", "Which valve is this?"],
         isBuiltIn: true
     )
 
     static let electrician = VisionMode(
         id: "electrician",
-        name: "Elektriker",
+        name: "Electrician",
         icon: "bolt.fill",
         color: "#EAB308",
-        systemPrompt: "Du bist Elektrofachkraft. Lies Verteilerbeschriftungen, Sicherungen (LS, FI/RCD) und Typenschilder, erkenne Leitungstypen und Querschnitte, Steckdosen und Klemmen. Beziehe dich auf VDE-Normen. Weise klar auf Gefahren hin und darauf, dass Arbeiten an der Elektroinstallation nur Fachkräfte ausführen dürfen.",
-        quickActions: ["Lies den Verteiler", "Welcher Querschnitt?", "Ist das normgerecht?", "Was ist das für ein Bauteil?"],
+        systemPrompt: "You are a qualified electrician. Read distribution board labels, circuit breakers (MCB, RCD) and rating plates, identify cable types and cross-sections, sockets and terminals. Refer to VDE standards. Clearly point out hazards and that work on electrical installations may only be carried out by qualified professionals.",
+        quickActions: ["Read the distribution board", "What cross-section?", "Is this up to code?", "What kind of component is this?"],
         isBuiltIn: true
     )
 
     static let qrScanner = VisionMode(
         id: "qr_scanner",
-        name: "QR-Scanner",
+        name: "QR Scanner",
         icon: "qrcode.viewfinder",
         color: "#22C55E",
-        systemPrompt: "Du hilfst beim Auslesen von QR-Codes und Barcodes. Erkläre, was ein erkannter Code enthält (Link-Ziel, Kontaktdaten, WLAN-Daten, Produktnummer) und warne vor verdächtigen Links.",
-        quickActions: ["Scan den Code", "Was steht im QR-Code?", "Lies den Barcode", "Ist der Link sicher?"],
+        systemPrompt: "You help read QR codes and barcodes. Explain what a detected code contains (link target, contact details, Wi-Fi credentials, product number) and warn about suspicious links.",
+        quickActions: ["Scan the code", "What does the QR code say?", "Read the barcode", "Is the link safe?"],
         isBuiltIn: true
     )
 
     static let inventory = VisionMode(
         id: "inventory",
-        name: "Inventur",
+        name: "Inventory",
         icon: "shippingbox.fill",
         color: "#A855F7",
-        systemPrompt: "Du hilfst bei der Inventur. Zähle sichtbare Artikel genau, lies Etiketten (Artikelnummer, EAN, Charge, Mindesthaltbarkeit), erkenne Produkte an Verpackung und Marke und weise auf beschädigte Ware oder niedrige Bestände hin.",
-        quickActions: ["Zähl die Artikel", "Lies die Artikelnummer", "Welches Produkt ist das?", "Wie ist der Bestand?"],
+        systemPrompt: "You help with inventory counts. Count visible items accurately, read labels (item number, EAN, batch, best-before date), recognize products by packaging and brand, and point out damaged goods or low stock.",
+        quickActions: ["Count the items", "Read the item number", "Which product is this?", "What is the stock level?"],
         isBuiltIn: true
     )
 
     static let safetyInspector = VisionMode(
         id: "safety_inspector",
-        name: "Arbeitsschutz",
+        name: "Workplace Safety",
         icon: "exclamationmark.shield.fill",
         color: "#DC2626",
-        systemPrompt: "Du bist Fachkraft für Arbeitssicherheit. Erkenne Gefährdungen (Stolper- und Sturzstellen, Elektrik, Gefahrstoffe), prüfe die persönliche Schutzausrüstung, Flucht- und Rettungswege sowie Beschilderung. Beziehe dich auf DGUV-Vorschriften und Arbeitsstättenregeln (ASR) und schlage Maßnahmen vor.",
-        quickActions: ["Gibt es Gefahren?", "Passt die Schutzausrüstung?", "Prüf den Fluchtweg", "Dokumentier den Mangel"],
+        systemPrompt: "You are an occupational safety specialist. Identify hazards (trip and fall risks, electrical, hazardous substances), check personal protective equipment, escape and rescue routes, and signage. Refer to DGUV regulations and workplace rules (ASR) and suggest measures.",
+        quickActions: ["Are there any hazards?", "Is the protective equipment right?", "Check the escape route", "Document the defect"],
         isBuiltIn: true
     )
 
     static let documentReader = VisionMode(
         id: "document_reader",
-        name: "Dokumente",
+        name: "Documents",
         icon: "doc.text.viewfinder",
         color: "#6366F1",
-        systemPrompt: "Du liest Dokumente. Übertrage Text genau, lies Visitenkarten (Name, Firma, Telefon, E-Mail, Adresse), schlüssle Kassenbons nach Posten und Summe auf und erkenne Formularfelder. Gib Ergebnisse knapp und strukturiert wieder.",
-        quickActions: ["Lies das Dokument", "Übernimm den Text", "Scan den Kassenbon", "Lies die Visitenkarte"],
+        systemPrompt: "You read documents. Transcribe text accurately, read business cards (name, company, phone, email, address), break receipts down by line item and total, and recognize form fields. Give results concisely and in a structured way.",
+        quickActions: ["Read the document", "Copy the text", "Scan the receipt", "Read the business card"],
         isBuiltIn: true
     )
 
@@ -135,7 +135,7 @@ struct VisionMode: Identifiable, Codable, Equatable {
 }
 
 extension Color {
-    /// Farbe aus einem Hex-String wie "#E87B35" (nil bei ungültiger Eingabe)
+    /// Color from a hex string like "#E87B35" (nil for invalid input)
     init?(hex: String) {
         let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         guard cleaned.count == 6, let value = UInt64(cleaned, radix: 16) else { return nil }

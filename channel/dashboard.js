@@ -1,4 +1,4 @@
-// RayBan Claude – Dashboard (läuft nur auf http://localhost, siehe server.ts)
+// RayBan Claude – dashboard (runs on http://localhost only, see server.ts)
 'use strict'
 
 const REFRESH_MS = 3000
@@ -18,14 +18,14 @@ async function api(path, options = {}) {
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.token, ...(options.headers || {}) },
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || 'Fehler ' + res.status)
+  if (!res.ok) throw new Error(data.error || 'Error ' + res.status)
   return data
 }
 
 async function copyText(text, button) {
   await navigator.clipboard.writeText(text)
   const original = button.textContent
-  button.textContent = 'Kopiert ✓'
+  button.textContent = 'Copied ✓'
   setTimeout(() => { button.textContent = original }, COPY_FEEDBACK_MS)
 }
 
@@ -35,23 +35,23 @@ function renderPairing() {
   $('token').textContent = state.token
   const img = $('qr')
   img.src = '/api/pair.svg?host=' + encodeURIComponent(state.host)
-  img.onload = () => setStatus($('qr-hint'), 'Mit der iPhone-Kamera scannen')
-  img.onerror = () => setStatus($('qr-hint'), 'QR-Code konnte nicht erzeugt werden', 'bad')
+  img.onload = () => setStatus($('qr-hint'), 'Scan with the iPhone camera')
+  img.onerror = () => setStatus($('qr-hint'), 'Could not generate QR code', 'bad')
   renderRemote()
 }
 
-/** Zeigt, ob das iPhone den PC auch unterwegs (über Tailscale) erreicht. */
+/** Shows whether the iPhone can reach the PC on the go (via Tailscale). */
 function renderRemote() {
   const hint = $('remote-hint')
   if (!state.tailscale) {
-    setStatus(hint, '🌍 Unterwegs: Tailscale nicht gefunden. Installiere Tailscale (kostenlos) auf PC und iPhone und lade diese Seite neu – siehe README „Unterwegs“.')
+    setStatus(hint, '🌍 On the go: Tailscale not found. Install Tailscale (free) on PC and iPhone and reload this page – see README “On the go”.')
     return
   }
   if (state.tailscale === state.host) {
-    setStatus(hint, '🌍 Du koppelst direkt über Tailscale (' + state.tailscale + ') – klappt zu Hause und unterwegs.', 'ok')
+    setStatus(hint, '🌍 You are pairing directly via Tailscale (' + state.tailscale + ') – works at home and on the go.', 'ok')
     return
   }
-  setStatus(hint, '🌍 Unterwegs: über Tailscale (' + state.tailscale + ') – steckt schon im QR-Code. Zu Hause nimmt die App das WLAN, unterwegs automatisch Tailscale.', 'ok')
+  setStatus(hint, '🌍 On the go: via Tailscale (' + state.tailscale + ') – already included in the QR code. At home the app uses Wi-Fi, on the go it automatically uses Tailscale.', 'ok')
 }
 
 function renderBadges(status) {
@@ -59,12 +59,12 @@ function renderBadges(status) {
   $('badge-clients').innerHTML = ''
   const dot = document.createElement('span')
   dot.className = 'dot ' + (clients ? 'ok' : 'warn')
-  $('badge-clients').append(dot, document.createTextNode(clients === 1 ? '1 App verbunden' : clients + ' Apps verbunden'))
+  $('badge-clients').append(dot, document.createTextNode(clients === 1 ? '1 app connected' : clients + ' apps connected'))
 
   $('badge-voice').innerHTML = ''
   const vdot = document.createElement('span')
   vdot.className = 'dot ok'
-  $('badge-voice').append(vdot, document.createTextNode(status.tts ? 'Stimme: ElevenLabs' : 'Stimme: iPhone (kostenlos)'))
+  $('badge-voice').append(vdot, document.createTextNode(status.tts ? 'Voice: ElevenLabs' : 'Voice: iPhone (free)'))
   if (status.voice) $('eleven-voice').value = status.voice
 }
 
@@ -74,7 +74,7 @@ function renderActivity(entries) {
   if (!entries.length) {
     const li = document.createElement('li')
     li.className = 'hint'
-    li.textContent = 'Noch keine Nachrichten.'
+    li.textContent = 'No messages yet.'
     list.append(li)
     return
   }
@@ -82,12 +82,12 @@ function renderActivity(entries) {
     const li = document.createElement('li')
     const t = document.createElement('span')
     t.className = 't'
-    t.textContent = new Date(e.ts).toLocaleTimeString('de-DE')
+    t.textContent = new Date(e.ts).toLocaleTimeString('en-GB')
     const who = document.createElement('span')
     who.className = e.direction === 'in' ? 'in' : 'out'
     who.textContent = (e.direction === 'in' ? '← ' : '→ ') + e.source + (e.hasImage ? ' 📷' : '')
     const text = document.createElement('span')
-    text.textContent = e.text // textContent: kein HTML aus Nachrichten (XSS-Schutz)
+    text.textContent = e.text // textContent: no HTML from messages (XSS protection)
     li.append(t, who, text)
     list.append(li)
   })
@@ -98,14 +98,14 @@ async function refresh() {
     renderBadges(await api('/api/status'))
     renderActivity((await api('/api/activity')).activity || [])
   } catch (e) {
-    console.warn('Aktualisierung fehlgeschlagen', e)
+    console.warn('Refresh failed', e)
   }
 }
 
 async function init() {
   const res = await fetch('/api/local')
   if (!res.ok) {
-    document.body.textContent = 'Das Dashboard ist nur direkt auf dem PC unter http://localhost erreichbar.'
+    document.body.textContent = 'The dashboard is only reachable directly on the PC at http://localhost.'
     return
   }
   const local = await res.json()
@@ -115,7 +115,7 @@ async function init() {
   $('version').textContent = 'v' + local.version
 
   const select = $('ip-select')
-  const ips = local.ips.length ? local.ips : [{ address: 'localhost', iface: 'kein Netzwerk gefunden' }]
+  const ips = local.ips.length ? local.ips : [{ address: 'localhost', iface: 'no network found' }]
   ips.forEach(ip => {
     const opt = document.createElement('option')
     opt.value = ip.address
@@ -130,11 +130,11 @@ async function init() {
 
   $('btn-reveal').addEventListener('click', ev => {
     const shown = $('token').classList.toggle('shown')
-    ev.target.textContent = shown ? 'Token verbergen' : 'Token zeigen'
+    ev.target.textContent = shown ? 'Hide token' : 'Show token'
   })
   $('btn-copy').addEventListener('click', ev =>
     copyText('Host: ' + state.host + '\nPort: ' + state.port + '\nToken: ' + state.token
-      + (state.tailscale && state.tailscale !== state.host ? '\nUnterwegs (Tailscale): ' + state.tailscale : ''), ev.target))
+      + (state.tailscale && state.tailscale !== state.host ? '\nOn the go (Tailscale): ' + state.tailscale : ''), ev.target))
   document.querySelectorAll('[data-copy]').forEach(btn =>
     btn.addEventListener('click', () => copyText($(btn.dataset.copy).textContent, btn)))
 
@@ -142,7 +142,7 @@ async function init() {
     const status = $('test-status')
     try {
       const r = await api('/api/test-message', { method: 'POST', body: JSON.stringify({ text: $('test-text').value }) })
-      setStatus(status, r.delivered_to ? 'Zugestellt an ' + r.delivered_to + ' App(s) ✓' : 'Keine App verbunden – erst koppeln', r.delivered_to ? 'ok' : 'bad')
+      setStatus(status, r.delivered_to ? 'Delivered to ' + r.delivered_to + ' app(s) ✓' : 'No app connected – pair first', r.delivered_to ? 'ok' : 'bad')
     } catch (e) { setStatus(status, e.message, 'bad') }
   })
 
@@ -151,7 +151,7 @@ async function init() {
     try {
       const r = await api('/api/tts', { method: 'POST', body: JSON.stringify(body) })
       $('eleven-key').value = ''
-      setStatus(status, r.tts ? 'ElevenLabs aktiv ✓' : 'iPhone-Stimme aktiv (kostenlos) ✓', 'ok')
+      setStatus(status, r.tts ? 'ElevenLabs active ✓' : 'iPhone voice active (free) ✓', 'ok')
       refresh()
     } catch (e) { setStatus(status, e.message, 'bad') }
   }
@@ -165,9 +165,9 @@ async function init() {
     const status = $('im-status')
     try {
       const { link } = await api('/api/pair-link?host=' + encodeURIComponent(state.host))
-      const message = 'RayBan Claude koppeln:\n' + link
+      const message = 'Pair RayBan Claude:\n' + link
       await api('/api/send-imessage', { method: 'POST', body: JSON.stringify({ recipient: $('im-recipient').value, message }) })
-      setStatus(status, 'Gesendet ✓ – Link auf dem iPhone antippen', 'ok')
+      setStatus(status, 'Sent ✓ – tap the link on the iPhone', 'ok')
     } catch (e) { setStatus(status, e.message, 'bad') }
   })
 

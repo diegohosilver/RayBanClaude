@@ -1,103 +1,103 @@
-# Gefundene und behobene Bugs
+# Bugs found and fixed
 
-Bestandsaufnahme des Original-Codes (mrdulasolutions/visionclaude, Stand `a6e9cc3`) und
-was in RayBan Claude daraus wurde. Schweregrad: 🔴 kritisch · 🟠 hoch · 🟡 mittel · ⚪ gering.
+Inventory of the original code (mrdulasolutions/visionclaude, as of `a6e9cc3`) and
+what became of it in RayBan Claude. Severity: 🔴 critical · 🟠 high · 🟡 medium · ⚪ low.
 
-## Kritisch – Projekt unbrauchbar oder offen
+## Critical – project unusable or exposed
 
-| # | Bereich | Problem | Lösung |
+| # | Area | Problem | Fix |
 |---|---|---|---|
-| 1 | 🔴 iOS | **App ließ sich nicht mehr bauen.** `from: "0.5.0"` löst auf Meta DAT 0.9.0 auf – dort gibt es `StreamSession` nicht mehr. | Portierung auf DAT **1.0.1** (DeviceSession → Camera → Stream), offiziell für Ray-Ban Meta **Gen 1 und Gen 2**. Cloud-Build per GitHub Actions grün. |
-| 2 | 🔴 Repo | **Echter API-Key des Original-Autors** in `.claude/settings.local.json` im Repo. | Datei nicht übernommen, in `.gitignore`. (Der Original-Autor sollte den Key widerrufen.) |
-| 3 | 🔴 Channel | **Token aus dem ganzen WLAN auslesbar**: `/token` prüfte nur den Host-Header – `curl -H "Host: localhost" http://PC-IP:18790/token` genügte. | Nur noch echte Loopback-Verbindungen + Host-/Origin-Prüfung (auch gegen DNS-Rebinding). |
-| 4 | 🔴 Gateway | **Ohne `GATEWAY_API_KEY` komplett offen** auf `0.0.0.0`: jeder im WLAN konnte chatten, Tools ausführen, Systemprompt/Modell ändern. | Token immer Pflicht (wird automatisch erzeugt). |
-| 5 | 🔴 iOS | Fremde **Meta-App-ID, Client-Token und Apple-Team-ID** des Original-Autors fest eingebaut. | Über `Config.xcconfig`/`Secrets.xcconfig`; im Entwicklermodus nicht nötig. |
+| 1 | 🔴 iOS | **App could no longer be built.** `from: "0.5.0"` resolves to Meta DAT 0.9.0 – `StreamSession` no longer exists there. | Port to DAT **1.0.1** (DeviceSession → Camera → Stream), officially for Ray-Ban Meta **Gen 1 and Gen 2**. Cloud build via GitHub Actions green. |
+| 2 | 🔴 Repo | **The original author's real API key** in `.claude/settings.local.json` in the repo. | File not carried over, added to `.gitignore`. (The original author should revoke the key.) |
+| 3 | 🔴 Channel | **Token readable from the whole Wi-Fi**: `/token` only checked the Host header – `curl -H "Host: localhost" http://PC-IP:18790/token` was enough. | Only real loopback connections + Host/Origin check (also against DNS rebinding). |
+| 4 | 🔴 Gateway | **Completely open without `GATEWAY_API_KEY`** on `0.0.0.0`: anyone on the Wi-Fi could chat, run tools, change the system prompt/model. | Token always required (generated automatically). |
+| 5 | 🔴 iOS | The original author's **Meta app ID, client token and Apple team ID** hard-coded. | Via `Config.xcconfig`/`Secrets.xcconfig`; not needed in developer mode. |
 
-## Sicherheit
+## Security
 
-| # | Bereich | Problem | Lösung |
+| # | Area | Problem | Fix |
 |---|---|---|---|
-| 6 | 🟠 Channel | **AppleScript-Injection** über die Apple-ID in `/send-sms` (Anführungszeichen → Code-Ausführung). | Werte als `argv`, Formatprüfung; nur noch macOS + lokal. |
-| 7 | 🟠 Channel | **Pfad-Traversal** beim Speichern: Feld `source` landete ungeprüft im Dateinamen. | Whitelist `iphone`/`rayban`. |
-| 8 | 🟠 Channel | `/files/*` (Sprachausgabe, Anhänge) **ohne Token** abrufbar – Auth-Prüfung stand hinter der Auslieferung. | Token nötig, Dateinamen-Whitelist. |
-| 9 | 🟠 Channel | Beliebige Dateien als „Bild“ akzeptiert (Endung aus dem Dateinamen). | Prüfung der Magic Bytes (JPEG/PNG/HEIC), Größenlimit. |
-| 10 | 🟠 Channel | **`.env`-Injection** über den ElevenLabs-Key (Zeilenumbruch → weitere Variablen). | Formatprüfung, Datei mit Rechten 0600. |
-| 11 | 🟠 beide | Kein Schutz gegen **Token-Raten**, Vergleich nicht zeitkonstant. | `timingSafeEqual`, Sperre nach 10 Fehlversuchen für 15 Minuten. |
-| 12 | 🟠 Gateway | `/health` verriet MCP-Server, Tools und Skills; **CORS `*`** erlaubte jeder Webseite den Zugriff. | Öffentlich nur „ok“, CORS entfernt, Security-Header (CSP, nosniff, …). |
-| 13 | 🟠 Gateway | stdio-MCP-Server erbten **`ANTHROPIC_API_KEY`** und Gateway-Token. | Nur Standard-Umgebung + konfiguriertes `env`. |
-| 14 | 🟠 iOS | Token und ElevenLabs-Key **im Klartext in UserDefaults**. | iOS-Schlüsselbund. |
-| 15 | 🟡 beide | Interne Fehlertexte (SDK, Stacktraces) gingen an die App. | Neutrale Meldungen, Details nur im Log. |
-| 16 | 🟡 Channel | Anhänge: Claude konnte jede Datei des PCs an die App schicken. | Nur Bilder, PDF, Text, Audio; max. 25 MB. |
-| 17 | 🟡 Doku | `claude ... -p bypassPermissions` als „freihändig“ empfohlen – `-p` ist der Print-Modus, und Bypass schützt nicht vor Prompt-Injection über Kamerabilder. | Nur die eigenen Antwort-Tools vorab erlauben; andere Freigaben direkt am Handy. |
+| 6 | 🟠 Channel | **AppleScript injection** via the Apple ID in `/send-sms` (quotation marks → code execution). | Values as `argv`, format check; now macOS + local only. |
+| 7 | 🟠 Channel | **Path traversal** when saving: the `source` field ended up unchecked in the file name. | Allowlist `iphone`/`rayban`. |
+| 8 | 🟠 Channel | `/files/*` (speech output, attachments) retrievable **without a token** – the auth check came after the delivery. | Token required, file name allowlist. |
+| 9 | 🟠 Channel | Arbitrary files accepted as an "image" (extension taken from the file name). | Magic byte check (JPEG/PNG/HEIC), size limit. |
+| 10 | 🟠 Channel | **`.env` injection** via the ElevenLabs key (line break → further variables). | Format check, file with permissions 0600. |
+| 11 | 🟠 both | No protection against **token guessing**, comparison not constant-time. | `timingSafeEqual`, lockout for 15 minutes after 10 failed attempts. |
+| 12 | 🟠 Gateway | `/health` revealed MCP servers, tools and skills; **CORS `*`** allowed any web page access. | Public only "ok", CORS removed, security headers (CSP, nosniff, …). |
+| 13 | 🟠 Gateway | stdio MCP servers inherited **`ANTHROPIC_API_KEY`** and the gateway token. | Only standard environment + configured `env`. |
+| 14 | 🟠 iOS | Token and ElevenLabs key **in plain text in UserDefaults**. | iOS keychain. |
+| 15 | 🟡 both | Internal error texts (SDK, stack traces) went to the app. | Neutral messages, details only in the log. |
+| 16 | 🟡 Channel | Attachments: Claude could send any file on the PC to the app. | Only images, PDF, text, audio; max. 25 MB. |
+| 17 | 🟡 Docs | `claude ... -p bypassPermissions` recommended as "hands-free" – `-p` is print mode, and bypass does not protect against prompt injection via camera images. | Pre-approve only the own reply tools; other approvals directly on the phone. |
 
-## Funktion
+## Functionality
 
-| # | Bereich | Problem | Lösung |
+| # | Area | Problem | Fix |
 |---|---|---|---|
-| 18 | 🟠 iOS | **Brille streamte nach „Stop“ weiter** (Task las `streamSession` erst, nachdem es `nil` war). | Sauberer Teardown Kamera → Session. |
-| 19 | 🟠 iOS | **Bilder kamen um 90° gedreht** bei Claude an (Sensor-Ausrichtung). | `videoRotationAngle = 90`. |
-| 20 | 🟠 iOS | Ohne Antwort hing die App **für immer bei „Denkt nach“** – jede weitere Frage wurde ignoriert. | Zustellbestätigung (10 s) und Antwort-Timeout. |
-| 21 | 🟠 iOS | Spracherkennung und Stimme **fest auf Englisch** – Deutsch wurde nicht verstanden. | Sprache wählbar, Standard = Gerätesprache. |
-| 22 | 🟠 Channel | **Verwaister Prozess** nach dem Beenden von Claude blockierte den Port („Port belegt“). | Prozess endet mit der MCP-Verbindung. |
-| 23 | 🟠 Channel | **Absturz unter Windows/Linux** (macOS-Befehl `open`). | Plattformabhängig, abgesichert. |
-| 24 | 🟠 Gateway | Jedes Kamerabild blieb in der History → **Kosten explodieren** pro Runde. | Bilder nur in der aktuellen Nachricht, History begrenzt. |
-| 25 | 🟡 Channel | Anhänge aus `reply` wurden kopiert, aber **nie an die App geschickt**. | URLs in der Antwort, Anzeige im Verlauf. |
-| 26 | 🟡 Channel | `edit_message` erzeugte eine **neue Nachricht** statt die alte zu ändern. | Eigener Nachrichtentyp `edit`. |
-| 27 | 🟡 iOS | Gateway-Modus **nie wählbar**, sendete kein Token; Upload erwartete 204. | Auswahl in den Einstellungen, Token-Header, 2xx. |
-| 28 | 🟡 iOS | Reconnect: Zähler nie erhöht, doppelte Reconnects, **URLSession-Leck**, Endlosschleife bei falschem Token. | Backoff, eine Verbindung, Stopp bei 401/429. |
-| 29 | 🟡 iOS | Modus-Auswahl und Brillen-Status **aktualisierten sich nicht** (verschachtelte ObservableObjects). | Weiterleitung bzw. `@ObservedObject`. |
-| 30 | 🟡 iOS | Zuhören brach still ab, Anzeige blieb auf „Hört zu“; Sätze wurden teils **doppelt** gesendet. | Rückmeldung bei Abbruch, Pause nur einmal verarbeitet. |
-| 31 | 🟡 iOS | Audio-Session wurde ständig umgeschaltet – bei **Gen 2** führt das zu „Device unavailable“. | Einmal `.playAndRecord` + HFP, kein Wechsel auf `.playback`. |
-| 32 | 🟡 iOS | **Absturz** bei ungültiger Host-Eingabe (`URL(...)!`); Port-Feld sprang beim Löschen auf 18790. | Optionale URLs, eigener Textzustand. |
-| 33 | 🟡 Channel | Unter Windows **falsche IP** im Dashboard (WSL/Hyper-V-Adapter zuerst). | Ranking: WLAN/192.168.x zuerst, virtuelle Adapter zuletzt. |
-| 34 | 🟡 Channel | `.env` mit Windows-Zeilenenden (CRLF) falsch gelesen. | CRLF-tolerant. |
-| 35 | 🟡 Gateway | `HOME` unter Windows undefiniert; **Privatpfade des Original-Autors** hart codiert; Claude-Desktop-Config nur auf macOS. | `os.homedir()`, `SKILL_PATHS`, Pfade für Windows/Linux/Store-App. |
-| 36 | 🟡 Gateway | Doppelte Tool-Namen ließen **jede Anfrage mit 400** scheitern; Skill-Inhalte kamen nie bei Claude an. | Kollisionen gefiltert, Tool `skill_laden`. |
-| 37 | ⚪ Channel | Inbox/Outbox wuchsen unbegrenzt. | Aufräumen nach 24 h. |
-| 38 | ⚪ iOS | Kamera-Stop während laufendem Start übersehen; neuer `CIContext` pro Bild; Display-Link erzeugte pro Frame eine Task; Puls-Animation unsichtbar. | Session-Queue, ein Context, direkte Aktualisierung. |
-| 39 | ⚪ Setup | `.mcp.json` mit absoluten Pfaden des Original-Autors; Setup nur für macOS. | Relativer Pfad, `setup.cmd`/`start.cmd` für Windows. |
+| 18 | 🟠 iOS | **Glasses kept streaming after "Stop"** (task read `streamSession` only after it was `nil`). | Clean teardown camera → session. |
+| 19 | 🟠 iOS | **Images arrived rotated by 90°** at Claude (sensor orientation). | `videoRotationAngle = 90`. |
+| 20 | 🟠 iOS | Without an answer the app **hung on "Thinking" forever** – every further question was ignored. | Delivery acknowledgement (10 s) and answer timeout. |
+| 21 | 🟠 iOS | Speech recognition and voice **hard-coded to English** – German was not understood. | Language selectable, default = device language. |
+| 22 | 🟠 Channel | **Orphaned process** after quitting Claude blocked the port ("port in use"). | Process ends with the MCP connection. |
+| 23 | 🟠 Channel | **Crash on Windows/Linux** (macOS command `open`). | Platform-dependent, hardened. |
+| 24 | 🟠 Gateway | Every camera image stayed in the history → **costs exploded** per round. | Images only in the current message, history capped. |
+| 25 | 🟡 Channel | Attachments from `reply` were copied but **never sent to the app**. | URLs in the reply, shown in the history. |
+| 26 | 🟡 Channel | `edit_message` created a **new message** instead of changing the old one. | Dedicated message type `edit`. |
+| 27 | 🟡 iOS | Gateway mode **never selectable**, sent no token; upload expected 204. | Selection in Settings, token header, 2xx. |
+| 28 | 🟡 iOS | Reconnect: counter never incremented, duplicate reconnects, **URLSession leak**, endless loop with a wrong token. | Backoff, one connection, stop on 401/429. |
+| 29 | 🟡 iOS | Mode selection and glasses status **did not update** (nested ObservableObjects). | Forwarding or `@ObservedObject`. |
+| 30 | 🟡 iOS | Listening aborted silently, display stayed on "Listening"; sentences were sometimes sent **twice**. | Feedback on abort, pause processed only once. |
+| 31 | 🟡 iOS | Audio session was switched constantly – on **Gen 2** this leads to "Device unavailable". | `.playAndRecord` + HFP once, no switch to `.playback`. |
+| 32 | 🟡 iOS | **Crash** on invalid host input (`URL(...)!`); port field jumped to 18790 when deleting. | Optional URLs, own text state. |
+| 33 | 🟡 Channel | **Wrong IP** in the dashboard on Windows (WSL/Hyper-V adapter first). | Ranking: Wi-Fi/192.168.x first, virtual adapters last. |
+| 34 | 🟡 Channel | `.env` with Windows line endings (CRLF) read incorrectly. | CRLF-tolerant. |
+| 35 | 🟡 Gateway | `HOME` undefined on Windows; the original author's **private paths** hard-coded; Claude desktop config only on macOS. | `os.homedir()`, `SKILL_PATHS`, paths for Windows/Linux/Store app. |
+| 36 | 🟡 Gateway | Duplicate tool names made **every request fail with 400**; skill contents never reached Claude. | Collisions filtered, tool `skill_laden`. |
+| 37 | ⚪ Channel | Inbox/outbox grew without limit. | Cleanup after 24 h. |
+| 38 | ⚪ iOS | Camera stop missed during a running start; new `CIContext` per image; display link created a task per frame; pulse animation invisible. | Session queue, one context, direct update. |
+| 39 | ⚪ Setup | `.mcp.json` with the original author's absolute paths; setup for macOS only. | Relative path, `setup.cmd`/`start.cmd` for Windows. |
 
-## Neu hinzugekommen
+## Newly added
 
-- **QR-Kopplung**: Dashboard zeigt QR-Code, iPhone-Kamera scannen, fertig (mit Sicherheitsabfrage).
-- **Freigaben aufs Handy** (Permission-Relay): Tool-Freigaben per Knopf oder „Ja“/„Nein“.
-- **Foto auf Anfrage**: Claude kann mit `request_photo` ein scharfes Foto mit der Brille auslösen.
-- **Gen-2-Details**: Akku, Modell, Bügel-Status, automatischer Neustart beim Aufklappen.
-- **Kostenloser Cloud-Build** der iPhone-App + Anleitung für Windows (Sideloadly).
-- **Tests**: 12 End-to-End-Tests für den Channel, CI unter Windows/macOS/Linux.
-- Deutsche Oberfläche, deutsche Modi (VDE, DGUV/ASR statt NEC/OSHA), neue Modi „Übersetzer“ und „Umgebung“.
+- **QR pairing**: the dashboard shows a QR code, scan it with the iPhone camera, done (with a security prompt).
+- **Approvals on the phone** (permission relay): tool approvals by button or "Yes"/"No".
+- **Photo on request**: Claude can trigger a sharp photo with the glasses using `request_photo`.
+- **Gen 2 details**: battery, model, temple status, automatic restart on unfolding.
+- **Free cloud build** of the iPhone app + guide for Windows (Sideloadly).
+- **Tests**: 12 end-to-end tests for the channel, CI on Windows/macOS/Linux.
+- German interface, German modes (VDE, DGUV/ASR instead of NEC/OSHA), new modes "Translator" and "Surroundings".
 
-## Offen / bekannte Grenzen
+## Open / known limits
 
-- Im WLAN läuft die Verbindung per **HTTP** (kein Zertifikat für LAN-IPs möglich) – geschützt durch Token.
-  Für unterwegs: Tailscale o. Ä. statt Port-Freigabe im Router.
-- **Prompt-Injection über Kamerabilder** (Text im Bild) lässt sich nicht vollständig verhindern –
-  deshalb bleiben Tool-Freigaben aktiv und Claude soll vor Aktionen mit Außenwirkung nachfragen.
-  Im Gateway-Modus (ohne Rückfragen) sind standardmäßig nur lesende Werkzeuge freigegeben (`MCP_TOOL_ALLOWLIST`).
+- On Wi-Fi the connection runs over **HTTP** (no certificate possible for LAN IPs) – protected by a token.
+  For on the go: Tailscale or similar instead of port forwarding on the router.
+- **Prompt injection via camera images** (text in the image) cannot be fully prevented –
+  that is why tool approvals stay active and Claude is supposed to ask before actions with external effect.
+  In gateway mode (without confirmations) only read-only tools are approved by default (`MCP_TOOL_ALLOWLIST`).
 
-## Nachgezogen nach dem Sicherheits-Check (2026-10-19)
+## Follow-up after the security check (2026-10-19)
 
-- Gateway: Erlaubt-Liste für MCP-Werkzeuge, Standard = nur lesende Werkzeuge (`server/src/tool-policy.ts`).
-- Channel: Token nur noch im `Authorization`-Header, nicht mehr als URL-Parameter (+ Test).
-- `.gitignore`: `.env.*`, Schlüssel- und Zertifikatsdateien, lokale Datenbanken, Python-Caches.
-- gitleaks-Fehlalarm (öffentliche Stimmen-ID) entschärft: Platzhalter + `.gitleaksignore` mit Begründung.
-- Meta DAT 1.0.x hat bei Gen 2 ein bekanntes **Speicherleck** im Bluetooth-Puffer (~4 MB/min, Meta-Issue #324) –
-  bei sehr langen Sitzungen App gelegentlich neu starten.
-- Die iPhone-App ist in der Cloud gebaut, aber **noch nicht auf echter Hardware** (Brille + iPhone) getestet.
+- Gateway: allowlist for MCP tools, default = read-only tools only (`server/src/tool-policy.ts`).
+- Channel: token only in the `Authorization` header, no longer as a URL parameter (+ test).
+- `.gitignore`: `.env.*`, key and certificate files, local databases, Python caches.
+- gitleaks false positive (public voice ID) defused: placeholder + `.gitleaksignore` with justification.
+- Meta DAT 1.0.x has a known **memory leak** in the Bluetooth buffer on Gen 2 (~4 MB/min, Meta issue #324) –
+  restart the app now and then in very long sessions.
+- The iPhone app is built in the cloud, but **not yet tested on real hardware** (glasses + iPhone).
 
-## Wie Meta AI: Kamera auf Zuruf, Hosentaschen-Modus (2026-10-19)
+## Like Meta AI: camera on request, pocket mode (2026-10-19)
 
-- Die Brille hat dauernd gefilmt (Akku, Wärme, Speicherleck im Meta-SDK #324) – jetzt nur noch Fotos auf Zuruf.
-- Die Aufnahme wurde nach jedem Satz gestoppt; im Hintergrund darf iOS sie dann nicht neu starten – jetzt läuft sie durch.
-- `request_photo` ließ Claude ewig warten, wenn kein Foto möglich war – jetzt kommt „Foto nicht möglich“ zurück.
-- Ein anderes Bluetooth-Headset (z. B. im Auto) konnte der Brille das Mikrofon „wegnehmen“ – jetzt hat die Brille Vorrang.
+- The glasses filmed continuously (battery, heat, memory leak in the Meta SDK #324) – now only photos on request.
+- Recording was stopped after every sentence; in the background iOS then may not restart it – now it keeps running.
+- `request_photo` made Claude wait forever if no photo was possible – now "Photo not possible" comes back.
+- Another Bluetooth headset (e.g. in the car) could "take away" the microphone from the glasses – now the glasses have priority.
 
-## Nachgezogen mit „Unterwegs übers Abo“ und Gedächtnis (2026-10-19)
+## Follow-up with "On the go via the subscription" and memory (2026-10-19)
 
-- **Eigener Fehler aus der ersten Fassung des Direkt-Modus:** Sprachbefehle prüften noch, ob der PC verbunden ist –
-  ohne PC kam deshalb immer „Nicht verbunden“. Auch die Rückfrage nach einer Antwort und der Kamerastart beim
-  Wechsel der Bildquelle hingen an der PC-Verbindung. Jetzt zählt, ob *irgendein* Weg zu Claude offen ist.
-- Tote Verbindungen (z. B. WLAN weg, Tunnel unterbrochen) blieben bis zu zwei Minuten „verbunden“ – jetzt erkennt die
-  App sie am Ping und am Netzwechsel und verbindet sofort neu (unterwegs über Tailscale).
-- Offen: Die App schickt ihr Token im WLAN an die gespeicherte Heim-Adresse – auch in fremden WLANs, wie bisher.
-  Mit mobilen Daten nimmt sie nur noch die Tailscale-Adresse. Eine gegenseitige Prüfung ohne Klartext-Token ist geplant.
+- **Own mistake from the first version of direct mode:** voice commands still checked whether the PC was connected –
+  without a PC that always produced "Not connected". The follow-up question after an answer and the camera start when
+  switching the image source also depended on the PC connection. Now what counts is whether *any* path to Claude is open.
+- Dead connections (e.g. Wi-Fi gone, tunnel interrupted) stayed "connected" for up to two minutes – now the
+  app detects them via ping and network change and reconnects immediately (on the go via Tailscale).
+- Open: the app sends its token on Wi-Fi to the stored home address – also on foreign Wi-Fi networks, as before.
+  On mobile data it only uses the Tailscale address. Mutual verification without a plain-text token is planned.

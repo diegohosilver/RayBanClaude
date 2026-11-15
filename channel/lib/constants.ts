@@ -1,27 +1,27 @@
 /**
- * Zentrale Konstanten des Channel-Servers (Grenzwerte, Zeiten, HTTP-Status).
+ * Central constants of the channel server (limits, times, HTTP status codes).
  */
 
 export const VERSION = '2.1.0'
 export const SERVER_NAME = 'raybanclaude'
 
-// ── Einheiten ──────────────────────────────────────────────────────────────
+// ── Units ──────────────────────────────────────────────────────────────
 export const BYTES_PER_KB = 1024
 export const BYTES_PER_MB = 1_048_576
 export const MS_PER_SECOND = 1000
 export const MS_PER_MINUTE = 60_000
 export const MS_PER_HOUR = 3_600_000
 
-// ── Netzwerk ───────────────────────────────────────────────────────────────
+// ── Network ───────────────────────────────────────────────────────────────
 export const DEFAULT_PORT = 18790
 export const MIN_PORT = 1024
 export const MAX_PORT = 65535
 export const HTTP_DEFAULT_PORT = 80
-export const LISTEN_HOST = '0.0.0.0' // LAN-Zugriff vom Handy
+export const LISTEN_HOST = '0.0.0.0' // LAN access from the phone
 
-// ── Grenzwerte ─────────────────────────────────────────────────────────────
-export const MAX_TEXT_CHARS = 8000            // Nutzernachricht
-export const MAX_REPLY_CHARS = 10_000         // Antwort von Claude
+// ── Limits ─────────────────────────────────────────────────────────────
+export const MAX_TEXT_CHARS = 8000            // user message
+export const MAX_REPLY_CHARS = 10_000         // reply from Claude
 export const MAX_MODE_PROMPT_CHARS = 4000
 export const MAX_MODE_NAME_CHARS = 60
 export const MAX_REASON_CHARS = 120
@@ -40,12 +40,12 @@ export const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * BYTES_PER_MB
 export const MAX_REQUEST_MB = 16
 export const MAX_REQUEST_BYTES = MAX_REQUEST_MB * BYTES_PER_MB
 
-/** Base64 bläht um 4/3 auf – Obergrenze für die Länge eines Base64-Bildes. */
+/** Base64 inflates by 4/3 – upper bound for the length of a Base64 image. */
 const BASE64_GROUP_BYTES = 3
 const BASE64_GROUP_CHARS = 4
 export const MAX_IMAGE_BASE64_CHARS = Math.ceil(MAX_IMAGE_BYTES / BASE64_GROUP_BYTES) * BASE64_GROUP_CHARS + BASE64_GROUP_CHARS
 
-// ── Zeiten ─────────────────────────────────────────────────────────────────
+// ── Times ─────────────────────────────────────────────────────────────────
 export const FILE_TTL_HOURS = 24
 export const FILE_TTL_MS = FILE_TTL_HOURS * MS_PER_HOUR
 export const AUTH_MAX_FAILS = 10
@@ -59,41 +59,41 @@ export const WS_IDLE_TIMEOUT_SECONDS = 120
 export const PHONE_ACTION_TIMEOUT_MS = 25_000
 export const MAX_ACTION_RESULT_CHARS = 300
 
-// ── Gedächtnis ─────────────────────────────────────────────────────────────
+// ── Memory ─────────────────────────────────────────────────────────────
 export const MAX_MEMORY_ITEMS = 200
 export const MAX_MEMORY_ITEM_CHARS = 300
-/** So oft schaut der Channel nach Fakten, die die Claude-App für die Brille vorgemerkt hat */
+/** How often the channel checks for facts the Claude app queued for the glasses */
 export const PENDING_MEMORY_POLL_MS = 5000
 
-// ── Gesprächsverlauf ───────────────────────────────────────────────────────
+// ── Conversation history ───────────────────────────────────────────────────────
 export const MS_PER_DAY = 86_400_000
-export const HISTORY_DAYS = 30                 // so lange bleibt der Verlauf auf dem PC
+export const HISTORY_DAYS = 30                 // how long the history stays on the PC
 export const MAX_HISTORY_ENTRY_CHARS = 2000
-export const MAX_HISTORY_READ_CHARS = 30_000   // so viel liefert brille_verlauf höchstens
+export const MAX_HISTORY_READ_CHARS = 30_000   // the most brille_verlauf returns
 export const DEFAULT_HISTORY_READ_DAYS = 3
 export const JSON_INDENT = 2
 
 // ── Token ──────────────────────────────────────────────────────────────────
-export const TOKEN_BYTES = 24              // → 48 Hex-Zeichen
+export const TOKEN_BYTES = 24              // → 48 hex characters
 export const TOKEN_PREVIEW_CHARS = 4
 export const TOKEN_PREVIEW_TAIL = -2
 export const RANDOM_SUFFIX_BYTES = 4
 export const PRIVATE_FILE_MODE = 0o600
 
 // ── ElevenLabs (optional) ──────────────────────────────────────────────────
-export const ELEVENLABS_MODEL = 'eleven_flash_v2_5' // mehrsprachig (inkl. Deutsch), geringste Latenz
+export const ELEVENLABS_MODEL = 'eleven_flash_v2_5' // multilingual (incl. German), lowest latency
 export const ELEVENLABS_DEFAULT_VOICE = 'XB0fDUnXU5powFXDhCwa' // Charlotte
 export const ELEVENLABS_STABILITY = 0.5
 export const ELEVENLABS_SIMILARITY = 0.75
 
-// ── Bildformate (Magic Bytes) ──────────────────────────────────────────────
+// ── Image formats (magic bytes) ──────────────────────────────────────────────
 export const JPEG_MAGIC_HEX = 'ffd8ff'
 export const PNG_MAGIC_HEX = '89504e47'
 export const HEIC_BRAND_START = 4
 export const HEIC_BRAND_END = 12
 export const MIN_IMAGE_HEADER_BYTES = HEIC_BRAND_END
 
-// ── HTTP-Status ────────────────────────────────────────────────────────────
+// ── HTTP status ────────────────────────────────────────────────────────────
 export const HTTP_OK = 200
 export const HTTP_ACCEPTED = 202
 export const HTTP_BAD_REQUEST = 400
@@ -106,5 +106,5 @@ export const HTTP_TOO_MANY_REQUESTS = 429
 export const HTTP_INTERNAL_ERROR = 500
 export const HTTP_NOT_IMPLEMENTED = 501
 
-/** WebSocket-readyState „offen“ (siehe WHATWG-Spezifikation). */
+/** WebSocket readyState "open" (see WHATWG specification). */
 export const WS_OPEN = 1

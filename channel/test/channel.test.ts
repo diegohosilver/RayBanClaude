@@ -1,6 +1,6 @@
 /**
- * End-to-End-Test des Channel-Servers: simuliert Claude Code (MCP über stdio)
- * und die iPhone-App (HTTP + WebSocket). Läuft mit `bun test`.
+ * End-to-end test of the channel server: simulates Claude Code (MCP over stdio)
+ * and the iPhone app (HTTP + WebSocket). Runs with `bun test`.
  */
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
@@ -25,10 +25,10 @@ const JSONRPC = '2.0'
 const PROTOCOL = '2025-06-18'
 const PERMISSION_ID = 'tbxkq'
 const TEN_MINUTES_SECONDS = 600
-/** Ein Wort, das genau einmal vorkommt, teilt den Text in zwei Teile. */
+/** A word that occurs exactly once splits the text into two parts. */
 const ONE_OCCURRENCE_PARTS = 2
 const NOT_A_STRING = 42
-/** Kleinstes Dummy-„JPEG“: Magic Bytes plus Füllbytes (der Server prüft nur den Header). */
+/** Smallest dummy "JPEG": magic bytes plus padding bytes (the server only checks the header). */
 const FAKE_JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new Array(28).fill(0)]) // eslint-disable-line ts-patterns/no-magic-numbers
 
 interface RpcMessage {
@@ -54,7 +54,7 @@ async function waitFor<TValue>(probe: () => TValue | undefined, label: string): 
     if (value !== undefined) return value
     await Bun.sleep(POLL_MS)
   }
-  throw new Error(`Zeitüberschreitung: ${label}`)
+  throw new Error(`Timeout: ${label}`)
 }
 
 function send(message: Record<string, unknown>): void {
@@ -72,7 +72,7 @@ async function rpc(method: string, params: Record<string, unknown> = {}): Promis
 
 async function readStdout(): Promise<void> {
   const decoder = new TextDecoder()
-  // Zeilenweise JSON-RPC-Nachrichten einsammeln
+  // Collect JSON-RPC messages line by line
   await proc.stdout.pipeTo(new WritableStream({
     write(chunk) {
       state.buffer += decoder.decode(chunk)
@@ -119,7 +119,7 @@ async function waitForHealth(): Promise<void> {
     if (ok) return
     await Bun.sleep(POLL_MS)
   }
-  throw new Error('HTTP-Server startet nicht')
+  throw new Error('HTTP server does not start')
 }
 
 afterAll(() => {
@@ -127,8 +127,8 @@ afterAll(() => {
   rmSync(home, { recursive: true, force: true })
 })
 
-describe('MCP-Seite', () => {
-  test('meldet Channel- und Permission-Capability sowie sechs Tools', async () => {
+describe('MCP side', () => {
+  test('reports channel and permission capabilities as well as six tools', async () => {
     const init = received.find(m => m.id === 1)?.result ?? {}
     const caps = (init.capabilities ?? {}) as Record<string, Record<string, unknown>>
     expect(caps.experimental?.['claude/channel']).toEqual({})
@@ -138,8 +138,8 @@ describe('MCP-Seite', () => {
   })
 })
 
-describe('HTTP-Sicherheit', () => {
-  test('/health ist öffentlich, verrät aber nichts', async () => {
+describe('HTTP security', () => {
+  test('/health is public but reveals nothing', async () => {
     const res = await fetch(`${BASE}/health`)
     expect(res.status).toBe(HTTP_OK)
     expect(await res.json()).toEqual({ status: 'ok', mode: 'channel', auth: 'required' })
@@ -147,12 +147,12 @@ describe('HTTP-Sicherheit', () => {
     expect(res.headers.get('access-control-allow-origin')).toBeNull()
   })
 
-  test('/api/local liefert das Token nur an localhost mit passendem Host-Header', async () => {
+  test('/api/local returns the token only to localhost with a matching Host header', async () => {
     const ok = await fetch(`${BASE}/api/local`)
     expect(ok.status).toBe(HTTP_OK)
-    const local = (await ok.json()) as { token: string } // Antwortform von /api/local
+    const local = (await ok.json()) as { token: string } // response shape of /api/local
     state.token = local.token
-    // 48 Hex-Zeichen (24 Zufallsbytes). Passt: "ab12…" (48 Zeichen); lehnt ab: "kurz".
+    // 48 hex characters (24 random bytes). Matches: "ab12…" (48 characters); rejects: "kurz".
     // https://regex101.com/?flavor=javascript&regex=%5E%5B0-9a-f%5D%7B48%7D%24&flags=m&testString=0123456789abcdef0123456789abcdef0123456789abcdef%0Akurz
     expect(state.token).toMatch(/^[0-9a-f]{48}$/)
     const rebinding = await fetch(`${BASE}/api/local`, { headers: { Host: 'evil.example' } })
@@ -161,31 +161,31 @@ describe('HTTP-Sicherheit', () => {
     expect(foreignOrigin.status).toBe(HTTP_FORBIDDEN)
   })
 
-  test('geschützte Routen verlangen das Token', async () => {
+  test('protected routes require the token', async () => {
     expect((await fetch(`${BASE}/api/status`)).status).toBe(HTTP_UNAUTHORIZED)
     expect((await authed('/api/status')).status).toBe(HTTP_OK)
   })
 
-  test('Token in der URL wird nicht akzeptiert (nur Authorization-Header)', async () => {
+  test('token in the URL is not accepted (Authorization header only)', async () => {
     const res = await fetch(`${BASE}/ws?token=${state.token}`)
     expect(res.status).toBe(HTTP_UNAUTHORIZED)
   })
 
-  test('Pfad-Traversal bei /files wird abgewiesen', async () => {
+  test('path traversal on /files is rejected', async () => {
     const res = await authed('/files/..%2F.channel-token')
     expect(res.status).toBe(HTTP_BAD_REQUEST)
   })
 
-  test('Upload ohne echtes Bild wird abgewiesen', async () => {
+  test('upload without a real image is rejected', async () => {
     const form = new FormData()
     form.set('text', 'Test')
-    form.set('image', new Blob(['<?php echo 1; ?> kein bild hier']), 'x.jpg')
+    form.set('image', new Blob(['<?php echo 1; ?> no image here']), 'x.jpg')
     expect((await authed('/upload', { method: 'POST', body: form })).status).toBe(HTTP_UNSUPPORTED_MEDIA)
   })
 })
 
-describe('Nachrichtenfluss App ↔ Claude', () => {
-  test('Text + Bild per WebSocket landen als Channel-Notification bei Claude', async () => {
+describe('Message flow app ↔ Claude', () => {
+  test('text + image via WebSocket arrive at Claude as a channel notification', async () => {
     const { ws, inbox } = await openSocket()
     ws.send(JSON.stringify({ id: 'ios-1', text: 'Was siehst du?', source: 'rayban', mode: 'Allgemein', mode_prompt: 'Sei hilfreich.', image: Buffer.from(FAKE_JPEG).toString('base64') }))
     const params = await notification('notifications/claude/channel', p => (p.meta as Record<string, string>)?.message_id === 'ios-1')
@@ -193,12 +193,12 @@ describe('Nachrichtenfluss App ↔ Claude', () => {
     expect(meta.device).toBe('rayban')
     expect(meta.mode).toBe('Allgemein')
     expect(meta.file_path).toContain('rayban.jpg')
-    expect(String(params.content)).toContain('[Modus „Allgemein“: Sei hilfreich.]')
+    expect(String(params.content)).toContain('[Mode “Allgemein”: Sei hilfreich.]')
     await waitFor(() => inbox.find(m => m.type === 'ack' && m.id === 'ios-1'), 'ack')
     ws.close()
   })
 
-  test('reply-Tool erreicht die App', async () => {
+  test('reply tool reaches the app', async () => {
     const { ws, inbox } = await openSocket()
     const result = await rpc('tools/call', { name: 'reply', arguments: { text: 'Ein roter Apfel.', reply_to: 'ios-1' } })
     expect(result.isError).toBeFalsy()
@@ -208,7 +208,7 @@ describe('Nachrichtenfluss App ↔ Claude', () => {
     ws.close()
   })
 
-  test('request_photo → App lädt Foto hoch → Claude erhält es mit request_id', async () => {
+  test('request_photo → app uploads photo → Claude receives it with request_id', async () => {
     const { ws, inbox } = await openSocket()
     await rpc('tools/call', { name: 'request_photo', arguments: { reason: 'Text lesen' } })
     const request = await waitFor(() => inbox.find(m => m.type === 'capture_request'), 'capture_request')
@@ -218,13 +218,13 @@ describe('Nachrichtenfluss App ↔ Claude', () => {
     form.set('image', new Blob([FAKE_JPEG], { type: 'image/jpeg' }), 'foto.jpg')
     expect((await authed('/upload', { method: 'POST', body: form })).status).toBe(HTTP_ACCEPTED)
     const params = await notification('notifications/claude/channel', p => (p.meta as Record<string, string>)?.request_id === request.id)
-    expect(params.content).toBe('(angefordertes Foto)')
+    expect(params.content).toBe('(requested photo)')
     ws.close()
   })
 
-  test('Permission-Relay: Freigabe-Anfrage aufs Handy, Antwort zurück an Claude', async () => {
+  test('permission relay: approval request to the phone, answer back to Claude', async () => {
     const { ws, inbox } = await openSocket()
-    send({ method: 'notifications/claude/channel/permission_request', params: { request_id: PERMISSION_ID, tool_name: 'Bash', description: 'Liste Dateien', input_preview: 'ls' } })
+    send({ method: 'notifications/claude/channel/permission_request', params: { request_id: PERMISSION_ID, tool_name: 'Bash', description: 'List files', input_preview: 'ls' } })
     const ask = await waitFor(() => inbox.find(m => m.type === 'permission_request'), 'permission_request')
     expect(ask.tool_name).toBe('Bash')
     ws.send(JSON.stringify({ type: 'permission', request_id: PERMISSION_ID, behavior: 'allow' }))
@@ -234,25 +234,25 @@ describe('Nachrichtenfluss App ↔ Claude', () => {
   })
 })
 
-describe('Handy-Aktionen (phone_action)', () => {
-  test('Timer geht an die App, deren Ergebnis zurück an Claude', async () => {
+describe('Phone actions (phone_action)', () => {
+  test('timer goes to the app, its result back to Claude', async () => {
     const { ws, inbox } = await openSocket()
     const pending = rpc('tools/call', { name: 'phone_action', arguments: { action: 'timer', duration_seconds: TEN_MINUTES_SECONDS, label: 'Nudeln' } })
     const action = await waitFor(() => inbox.find(m => m.type === 'phone_action'), 'phone_action')
     expect(action.action).toBe('timer')
     expect(action.duration_seconds).toBe(TEN_MINUTES_SECONDS)
     expect(action.label).toBe('Nudeln')
-    ws.send(JSON.stringify({ type: 'action_result', id: action.id, ok: true, message: 'Timer „Nudeln“ läuft (10 Min)' }))
+    ws.send(JSON.stringify({ type: 'action_result', id: action.id, ok: true, message: 'Timer “Nudeln” running (10 min)' }))
     const result = await pending
-    expect(JSON.stringify(result.content)).toContain('erledigt')
+    expect(JSON.stringify(result.content)).toContain('done')
     expect(result.isError).toBeFalsy()
     ws.close()
   })
 
-  test('Erinnerung, Foto sichern und Standort gehen an die App', async () => {
+  test('reminder, save photo and location go to the app', async () => {
     const { ws, inbox } = await openSocket()
     const answer = (action: Record<string, unknown>): void =>
-      ws.send(JSON.stringify({ type: 'action_result', id: action.id, ok: true, message: `${String(action.action)} erledigt` }))
+      ws.send(JSON.stringify({ type: 'action_result', id: action.id, ok: true, message: `${String(action.action)} done` }))
 
     const reminder = rpc('tools/call', { name: 'phone_action', arguments: { action: 'reminder', text: 'Zahnarzt', date: '2026-10-20', time: '09:00' } })
     const sentReminder = await waitFor(() => inbox.find(m => m.action === 'reminder'), 'reminder')
@@ -269,11 +269,11 @@ describe('Handy-Aktionen (phone_action)', () => {
     const sentPlace = await waitFor(() => inbox.find(m => m.action === 'location'), 'location')
     expect(sentPlace.label).toBe('Auto geparkt')
     answer(sentPlace)
-    expect(JSON.stringify((await place).content)).toContain('erledigt')
+    expect(JSON.stringify((await place).content)).toContain('done')
     ws.close()
   })
 
-  test('ungültige Eingaben werden abgewiesen, bevor etwas ans Handy geht', async () => {
+  test('invalid input is rejected before anything goes to the phone', async () => {
     const { ws, inbox } = await openSocket()
     const zero = await rpc('tools/call', { name: 'phone_action', arguments: { action: 'timer', duration_seconds: 0 } })
     expect(zero.isError).toBe(true)
@@ -292,60 +292,60 @@ describe('Handy-Aktionen (phone_action)', () => {
   })
 })
 
-describe('Gedächtnis', () => {
+describe('Memory', () => {
   const channelMessage = (id: string): Promise<Record<string, unknown>> =>
     notification('notifications/claude/channel', p => (p.meta as Record<string, string>)?.message_id === id)
 
-  test('Merkliste der App kommt mit der ersten Nachricht zu Claude – danach nicht noch einmal', async () => {
+  test('the app memory list reaches Claude with the first message – not again afterwards', async () => {
     const { ws } = await openSocket()
-    ws.send(JSON.stringify({ type: 'memory_sync', items: ['Tochter heißt Mia', 'tochter heißt mia', NOT_A_STRING, 'Trinkt Espresso'] }))
+    ws.send(JSON.stringify({ type: 'memory_sync', items: ['Daughter is called Mia', 'daughter is called mia', NOT_A_STRING, 'Drinks espresso'] }))
     ws.send(JSON.stringify({ id: 'mem-1', text: 'Hallo' }))
     const first = String((await channelMessage('mem-1')).content)
-    expect(first).toContain('- Tochter heißt Mia')
-    expect(first).toContain('- Trinkt Espresso')
-    expect(first.split('Mia').length).toBe(ONE_OCCURRENCE_PARTS) // Doppelter Eintrag wurde entfernt
+    expect(first).toContain('- Daughter is called Mia')
+    expect(first).toContain('- Drinks espresso')
+    expect(first.split('Mia').length).toBe(ONE_OCCURRENCE_PARTS) // duplicate entry was removed
     expect(first.endsWith('Hallo')).toBe(true)
     ws.send(JSON.stringify({ id: 'mem-2', text: 'Und jetzt?' }))
     expect((await channelMessage('mem-2')).content).toBe('Und jetzt?')
     ws.close()
   })
 
-  test('remember und forget ändern die Liste in der App', async () => {
+  test('remember and forget change the list in the app', async () => {
     const { ws, inbox } = await openSocket()
-    const saved = await rpc('tools/call', { name: 'remember', arguments: { fact: 'Fährt einen blauen Golf' } })
+    const saved = await rpc('tools/call', { name: 'remember', arguments: { fact: 'Drives a blue Golf' } })
     expect(saved.isError).toBeFalsy()
     const add = await waitFor(() => inbox.find(m => m.type === 'memory' && m.op === 'add'), 'memory add')
-    expect(add.items).toEqual(['Fährt einen blauen Golf'])
+    expect(add.items).toEqual(['Drives a blue Golf'])
     const removed = await rpc('tools/call', { name: 'forget', arguments: { fact: 'espresso' } })
-    expect(JSON.stringify(removed.content)).toContain('Trinkt Espresso')
+    expect(JSON.stringify(removed.content)).toContain('Drinks espresso')
     const remove = await waitFor(() => inbox.find(m => m.type === 'memory' && m.op === 'remove'), 'memory remove')
-    expect(remove.items).toEqual(['Trinkt Espresso'])
-    const nothing = await rpc('tools/call', { name: 'forget', arguments: { fact: 'Fallschirm' } })
-    expect(JSON.stringify(nothing.content)).toContain('nichts gespeichert')
+    expect(remove.items).toEqual(['Drinks espresso'])
+    const nothing = await rpc('tools/call', { name: 'forget', arguments: { fact: 'Parachute' } })
+    expect(JSON.stringify(nothing.content)).toContain('Nothing is stored')
     ws.close()
   })
 
-  test('geleerte Liste wird Claude mitgeteilt', async () => {
+  test('an emptied list is communicated to Claude', async () => {
     const { ws } = await openSocket()
     ws.send(JSON.stringify({ type: 'memory_sync', items: [] }))
-    ws.send(JSON.stringify({ id: 'mem-3', text: 'Was weißt du über mich?' }))
-    expect(String((await channelMessage('mem-3')).content)).toContain('Merkliste geleert')
+    ws.send(JSON.stringify({ id: 'mem-3', text: 'What do you know about me?' }))
+    expect(String((await channelMessage('mem-3')).content)).toContain('cleared their memory list')
     ws.close()
   })
 
-  test('ausgeschaltetes Gedächtnis: nichts wird geschickt oder gemerkt', async () => {
+  test('memory switched off: nothing is sent or remembered', async () => {
     const { ws, inbox } = await openSocket()
-    ws.send(JSON.stringify({ type: 'memory_sync', items: ['Geheimer Fakt'], enabled: false }))
+    ws.send(JSON.stringify({ type: 'memory_sync', items: ['Secret fact'], enabled: false }))
     ws.send(JSON.stringify({ id: 'mem-4', text: 'Hallo' }))
     expect((await channelMessage('mem-4')).content).toBe('Hallo')
-    const refused = await rpc('tools/call', { name: 'remember', arguments: { fact: 'Mag Tee' } })
+    const refused = await rpc('tools/call', { name: 'remember', arguments: { fact: 'Likes tea' } })
     expect(refused.isError).toBe(true)
     expect(inbox.some(m => m.type === 'memory')).toBe(false)
     ws.close()
   })
 })
 
-/** Ruft ein Werkzeug der Claude-App-Brücke (bridge.ts) auf – so, wie es die Claude-Desktop-App tut. */
+/** Calls a tool of the Claude app bridge (bridge.ts) – the way the Claude desktop app does. */
 async function bridgeCall(name: string, args: Record<string, unknown>): Promise<string> {
   const child = Bun.spawn([process.execPath, join(import.meta.dir, '..', 'bridge.ts')], { stdin: 'pipe', stdout: 'pipe', stderr: 'pipe', env: testEnv })
   const messages: RpcMessage[] = []
@@ -364,7 +364,7 @@ async function bridgeCall(name: string, args: Record<string, unknown>): Promise<
     child.stdin.flush()
   }
   write({ id: BRIDGE_INIT_ID, method: 'initialize', params: { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: 'claude-app', version: '1' } } })
-  await waitFor(() => messages.find(m => m.id === BRIDGE_INIT_ID), 'Brücke startet')
+  await waitFor(() => messages.find(m => m.id === BRIDGE_INIT_ID), 'bridge starts')
   write({ method: 'notifications/initialized' })
   write({ id: BRIDGE_CALL_ID, method: 'tools/call', params: { name, arguments: args } })
   const reply = await waitFor(() => messages.find(m => m.id === BRIDGE_CALL_ID), name)
@@ -372,8 +372,8 @@ async function bridgeCall(name: string, args: Record<string, unknown>): Promise<
   return JSON.stringify(reply.result ?? {})
 }
 
-describe('Claude-App-Brücke (Verlauf und Gedächtnis)', () => {
-  test('brille_verlauf liefert, worüber über die Brille gesprochen wurde', async () => {
+describe('Claude app bridge (history and memory)', () => {
+  test('brille_verlauf returns what was discussed through the glasses', async () => {
     const history = await bridgeCall('brille_verlauf', { tage: 1 })
     expect(history).toContain('Was siehst du?')
     expect(history).toContain('Ein roter Apfel.')
@@ -382,36 +382,36 @@ describe('Claude-App-Brücke (Verlauf und Gedächtnis)', () => {
     expect(search).not.toContain('Was siehst du?')
   })
 
-  test('brille_merken aus der Claude-App landet beim nächsten Verbinden auf dem iPhone', async () => {
-    expect(await bridgeCall('brille_merken', { fakt: 'Mag grünen Tee' })).toContain('Vorgemerkt')
-    expect(await bridgeCall('brille_gedaechtnis', {})).toContain('Mag grünen Tee')
+  test('brille_merken from the Claude app ends up on the iPhone the next time it connects', async () => {
+    expect(await bridgeCall('brille_merken', { fakt: 'Likes green tea' })).toContain('Queued')
+    expect(await bridgeCall('brille_gedaechtnis', {})).toContain('Likes green tea')
     const { ws, inbox } = await openSocket()
-    ws.send(JSON.stringify({ type: 'memory_sync', items: ['Tochter heißt Mia'] }))
-    const added = await waitFor(() => inbox.find(m => m.type === 'memory' && m.op === 'add'), 'memory add aus der Claude-App')
-    expect(added.items).toEqual(['Mag grünen Tee'])
+    ws.send(JSON.stringify({ type: 'memory_sync', items: ['Daughter is called Mia'] }))
+    const added = await waitFor(() => inbox.find(m => m.type === 'memory' && m.op === 'add'), 'memory add from the Claude app')
+    expect(added.items).toEqual(['Likes green tea'])
     const memoryNow = await bridgeCall('brille_gedaechtnis', {})
-    expect(memoryNow).toContain('Tochter heißt Mia')
-    expect(memoryNow).not.toContain('Vorgemerkt')
+    expect(memoryNow).toContain('Daughter is called Mia')
+    expect(memoryNow).not.toContain('Queued')
     ws.close()
   })
 
-  test('leerer Fakt wird abgewiesen', async () => {
+  test('empty fact is rejected', async () => {
     expect(await bridgeCall('brille_merken', { fakt: '   ' })).toContain('isError')
   })
 })
 
-describe('Brute-Force-Schutz', () => {
-  test(`nach ${AUTH_ATTEMPTS} falschen Tokens wird gesperrt`, async () => {
+describe('Brute-force protection', () => {
+  test(`locked after ${AUTH_ATTEMPTS} wrong tokens`, async () => {
     const attempts = Array.from({ length: AUTH_ATTEMPTS }, () =>
-      fetch(`${BASE}/api/status`, { headers: { Authorization: 'Bearer falsch' } }))
+      fetch(`${BASE}/api/status`, { headers: { Authorization: 'Bearer wrong' } }))
     await Promise.all(attempts)
     const locked = await fetch(`${BASE}/api/status`, { headers: { Authorization: `Bearer ${state.token}` } })
     expect(locked.status).toBe(HTTP_TOO_MANY)
   })
 })
 
-describe('Lebenszyklus', () => {
-  test('Prozess endet, wenn Claude Code die Verbindung schließt (kein verwaister Port)', async () => {
+describe('Lifecycle', () => {
+  test('process ends when Claude Code closes the connection (no orphaned port)', async () => {
     proc.stdin.end()
     const code = await Promise.race([proc.exited, Bun.sleep(WAIT_MS).then(() => 'timeout')])
     expect(code).toBe(0)

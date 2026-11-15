@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Gedächtnis ansehen und verwalten: Einträge löschen, selbst ergänzen, aus der Claude-App übernehmen.
+/// View and manage memory: delete entries, add your own, import from the Claude app.
 struct MemoryView: View {
     @ObservedObject var memory: MemoryStore
     @Binding var enabled: Bool
@@ -14,9 +14,9 @@ struct MemoryView: View {
         List {
             Group {
                 Section {
-                    Toggle("Claude merkt sich Dinge über dich", isOn: $enabled)
+                    Toggle("Claude remembers things about you", isOn: $enabled)
                 } footer: {
-                    Text("Sag zum Beispiel „Hey Claude, merk dir, dass meine Tochter Mia heißt“ – oder Claude notiert sich von selbst, was dauerhaft wichtig ist. „Vergiss das mit …“ löscht wieder. Die Liste liegt nur auf diesem iPhone und geht zu Beginn jedes Gesprächs an Claude.")
+                    Text("Say something like \"Hey Claude, remember that my daughter's name is Mia\" – or Claude will note on its own what is important long-term. \"Forget about …\" removes it again. The list is stored only on this iPhone and is sent to Claude at the start of every conversation.")
                 }
 
                 if enabled {
@@ -24,20 +24,20 @@ struct MemoryView: View {
                         Button {
                             showImport = true
                         } label: {
-                            Label("Aus der Claude-App übernehmen", systemImage: "square.and.arrow.down.on.square")
+                            Label("Import from the Claude app", systemImage: "square.and.arrow.down.on.square")
                         }
                         HStack {
-                            TextField("Selbst eintragen, z. B. „Trinkt Espresso ohne Zucker“", text: $newFact)
+                            TextField("Add your own, e.g. \"Drinks espresso without sugar\"", text: $newFact)
                                 .submitLabel(.done)
                                 .onSubmit(addFact)
-                            Button("Merken", action: addFact)
+                            Button("Remember", action: addFact)
                                 .disabled(MemoryStore.clean(newFact).isEmpty)
                         }
                     }
 
                     Section {
                         if memory.items.isEmpty {
-                            Text("Noch nichts gemerkt.").foregroundStyle(Color.hudMuted)
+                            Text("Nothing remembered yet.").foregroundStyle(Color.hudMuted)
                         }
                         ForEach(memory.items.reversed()) { item in
                             VStack(alignment: .leading, spacing: 2) {
@@ -47,31 +47,31 @@ struct MemoryView: View {
                             }
                         }
                         .onDelete { offsets in
-                            // Anzeige ist umgekehrt (neueste oben) → Indizes zurückrechnen
+                            // Display is reversed (newest on top) → convert indices back
                             let count = memory.items.count
                             memory.remove(at: IndexSet(offsets.map { count - 1 - $0 }))
                         }
                     } header: {
-                        HUDLabel("Gemerkt (\(memory.items.count))")
+                        HUDLabel("Remembered (\(memory.items.count))")
                     } footer: {
-                        Text("Zum Löschen nach links wischen.")
+                        Text("Swipe left to delete.")
                     }
 
                     if !memory.items.isEmpty {
                         Section {
-                            Button("Alles vergessen", role: .destructive) { confirmClear = true }
+                            Button("Forget everything", role: .destructive) { confirmClear = true }
                         }
                     }
                 }
             }
             .hudSection()
         }
-        .navigationTitle("Gedächtnis")
+        .navigationTitle("Memory")
         .hudList()
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showImport) { MemoryImportView(memory: memory) }
-        .confirmationDialog("Wirklich alle \(memory.items.count) Einträge löschen?", isPresented: $confirmClear, titleVisibility: .visible) {
-            Button("Alles vergessen", role: .destructive) { memory.clear() }
+        .confirmationDialog("Really delete all \(memory.items.count) entries?", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("Forget everything", role: .destructive) { memory.clear() }
         }
     }
 
@@ -82,8 +82,8 @@ struct MemoryView: View {
     }
 }
 
-/// Übernahme aus der offiziellen Claude-App: Dort fragt man Claude nach einer Zusammenfassung
-/// und fügt sie hier ein. (Eine Schnittstelle zum direkten Auslesen der Chats gibt es nicht.)
+/// Import from the official Claude app: there you ask Claude for a summary
+/// and paste it here. (There is no interface for reading the chats directly.)
 struct MemoryImportView: View {
     @ObservedObject var memory: MemoryStore
     @Environment(\.dismiss) private var dismiss
@@ -91,13 +91,13 @@ struct MemoryImportView: View {
     @State private var text = ""
     @State private var copied = false
 
-    static let prompt = "Fasse in kurzen Stichpunkten zusammen, was du aus unseren bisherigen Chats dauerhaft über mich weißt: Namen, Familie, Beruf, Vorlieben, Pläne, wichtige Termine. Eine Zeile pro Punkt, ohne Einleitung."
+    static let prompt = "Summarize in short bullet points what you permanently know about me from our previous chats: names, family, job, preferences, plans, important appointments. One line per point, no introduction."
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    step(1, "Öffne die Claude-App (oder claude.ai) und schick Claude diese Frage:")
+                    step(1, "Open the Claude app (or claude.ai) and send Claude this question:")
                     Text(Self.prompt)
                         .font(.callout)
                         .padding(10)
@@ -109,13 +109,13 @@ struct MemoryImportView: View {
                         UIPasteboard.general.string = Self.prompt
                         copied = true
                     } label: {
-                        Label(copied ? "Kopiert ✓" : "Frage kopieren", systemImage: "doc.on.doc")
+                        Label(copied ? "Copied ✓" : "Copy question", systemImage: "doc.on.doc")
                     }
-                    step(2, "Kopiere Claudes Antwort und füge sie unten ein.")
+                    step(2, "Copy Claude's answer and paste it below.")
                 } header: {
-                    HUDLabel("So geht’s")
+                    HUDLabel("How it works")
                 } footer: {
-                    Text("Noch einfacher am PC: Mit RayBan Claude ist die Claude-Desktop-App verknüpft. Sag dort einfach „Übertrag, was du über mich weißt, an die Brille“ – Claude schreibt es direkt hierher.")
+                    Text("Even easier on the PC: the Claude desktop app is linked with RayBan Claude. Just say \"Transfer what you know about me to the glasses\" there – Claude writes it straight here.")
                 }
                 .hudSection()
 
@@ -123,24 +123,24 @@ struct MemoryImportView: View {
                     TextEditor(text: $text)
                         .frame(minHeight: 160)
                         .scrollContentBackground(.hidden)
-                    // PasteButton fügt ohne die Rückfrage „Einfügen erlauben?“ ein
+                    // PasteButton pastes without the "Allow Paste?" prompt
                     PasteButton(payloadType: String.self) { strings in
                         if let pasted = strings.first { text = pasted }
                     }
                 } header: {
-                    HUDLabel("Antwort von Claude")
+                    HUDLabel("Claude's answer")
                 } footer: {
-                    Text("Jede Zeile wird ein Eintrag. Lies kurz drüber und lösch, was Claude nicht wissen soll – alles bleibt nur auf diesem iPhone.")
+                    Text("Each line becomes an entry. Skim through and delete anything Claude shouldn't know – everything stays only on this iPhone.")
                 }
                 .hudSection()
             }
             .hudList()
-            .navigationTitle("Aus der Claude-App")
+            .navigationTitle("From the Claude app")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Übernehmen") {
+                    Button("Import") {
                         _ = memory.importLines(text)
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                         dismiss()

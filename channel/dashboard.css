@@ -1,4 +1,4 @@
-/* Hologramm-HUD wie die Projektseite – bewusst nur dunkel. Keine Web-Fonts (strikte CSP): Bahnschrift/Cascadia sind bei Windows dabei. */
+/* Holographic HUD like the project page – dark only, on purpose. No web fonts (strict CSP): Bahnschrift/Cascadia ship with Windows. */
 :root {
   --bg: #02080f;
   --card: rgba(8, 30, 46, 0.78);

@@ -1,9 +1,9 @@
 /**
- * Gesprächsverlauf der Brille: eine Markdown-Datei pro Tag im Benutzerordner des PCs.
+ * Conversation history of the glasses: one Markdown file per day in the PC's user folder.
  *
- * Damit weiß Claude später noch, worüber ihr über die Brille gesprochen habt – in der
- * Claude-Desktop-App über das Werkzeug `brille_verlauf`. Tage, die älter als
- * HISTORY_DAYS sind, werden automatisch gelöscht. Der Verlauf verlässt den PC nicht.
+ * This lets Claude remember later what you talked about through the glasses – in the
+ * Claude desktop app via the `brille_verlauf` tool. Days older than
+ * HISTORY_DAYS are deleted automatically. The history never leaves the PC.
  */
 
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from 'fs'
@@ -16,9 +16,9 @@ import { cleanText } from './validate.ts'
 
 export type Speaker = 'du' | 'claude'
 
-const SPEAKER_LABEL: Readonly<Record<Speaker, string>> = { du: 'Du', claude: 'Claude' }
+const SPEAKER_LABEL: Readonly<Record<Speaker, string>> = { du: 'You', claude: 'Claude' }
 const FILE_SUFFIX = '.md'
-/** Schwedisches Datumsformat = JJJJ-MM-TT in Ortszeit */
+/** Swedish date format = YYYY-MM-DD in local time */
 const DAY_LOCALE = 'sv-SE'
 
 export function dayStamp(date: Date): string {
@@ -26,21 +26,21 @@ export function dayStamp(date: Date): string {
 }
 
 function timeStamp(date: Date): string {
-  return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
-/** Eine Zeile an den Verlauf des Tages anhängen (Zeilenumbrüche werden zu Leerzeichen). */
+/** Append a line to the day's history (line breaks become spaces). */
 export function appendHistory(dir: string, speaker: Speaker, raw: string, note = '', now: Date = new Date()): void {
   const text = cleanText(raw, MAX_HISTORY_ENTRY_CHARS).split(LINE_BREAK).join(' ')
   if (!text) return
   mkdirSync(dir, { recursive: true })
   const day = dayStamp(now)
   const file = join(dir, `${day}${FILE_SUFFIX}`)
-  const header = existsSync(file) ? '' : `# Gespräche über die Brille – ${day}\n\n`
+  const header = existsSync(file) ? '' : `# Conversations via the glasses – ${day}\n\n`
   appendFileSync(file, `${header}- ${timeStamp(now)} **${SPEAKER_LABEL[speaker]}:** ${text}${note}\n`, { mode: PRIVATE_FILE_MODE })
 }
 
-/** Tage mit Verlauf, älteste zuerst */
+/** Days with history, oldest first */
 function historyDays(dir: string): string[] {
   if (!existsSync(dir)) return []
   return readdirSync(dir)
@@ -49,7 +49,7 @@ function historyDays(dir: string): string[] {
     .sort()
 }
 
-/** Tage löschen, die älter als HISTORY_DAYS sind. */
+/** Delete days older than HISTORY_DAYS. */
 export function pruneHistory(dir: string, now: Date = new Date()): number {
   const oldest = dayStamp(new Date(now.getTime() - HISTORY_DAYS * MS_PER_DAY))
   const expired = historyDays(dir).filter(day => day < oldest)
@@ -58,8 +58,8 @@ export function pruneHistory(dir: string, now: Date = new Date()): number {
 }
 
 /**
- * Verlauf der letzten `days` Tage, optional nur Zeilen mit dem Suchbegriff.
- * Wird es zu lang, bleiben die neuesten Einträge.
+ * History of the last `days` days, optionally only lines containing the search term.
+ * If it gets too long, the newest entries are kept.
  */
 export function readHistory(dir: string, days: number, query = ''): string {
   const needle = query.trim().toLocaleLowerCase('de-DE')

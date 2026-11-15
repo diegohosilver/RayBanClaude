@@ -2,7 +2,7 @@
   "name": "raybanclaude-gateway",
   "version": "1.1.0",
   "private": true,
-  "description": "RayBan Claude Gateway – verbindet die iOS-App (Ray-Ban Meta Gen 2 bzw. iPhone-Kamera) über die Claude API mit MCP-Werkzeugen",
+  "description": "RayBan Claude Gateway – connects the iOS app (Ray-Ban Meta Gen 2 or iPhone camera) to MCP tools via the Claude API",
   "type": "module",
   "engines": {
     "node": ">=20"

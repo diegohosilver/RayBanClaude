@@ -1,67 +1,66 @@
-# iPhone-App installieren – ohne Mac, kostenlos
+# Installing the iPhone app – without a Mac, for free
 
-Apple erlaubt Apps außerhalb des App Stores nur signiert. Du brauchst dafür **keinen Mac
-und kein bezahltes Entwicklerkonto**: Die App wird kostenlos in der Cloud gebaut
-(GitHub Actions) und unter Windows mit **Sideloadly** und deiner **normalen Apple-ID**
-aufs iPhone gebracht.
+Apple only allows apps outside the App Store if they are signed. For this you need **no Mac
+and no paid developer account**: the app is built for free in the cloud
+(GitHub Actions) and brought to the iPhone on Windows with **Sideloadly** and your **regular Apple ID**.
 
-| Was | Kosten |
+| What | Cost |
 |---|---|
-| App bauen (GitHub Actions, öffentliches Repo) | kostenlos |
-| Sideloadly | kostenlos |
-| Apple-ID (kein Developer-Programm nötig) | kostenlos |
-| Einschränkung | App muss alle **7 Tage** neu signiert werden (Sideloadly kann das automatisch) |
+| Building the app (GitHub Actions, public repo) | free |
+| Sideloadly | free |
+| Apple ID (no developer program needed) | free |
+| Limitation | The app has to be re-signed every **7 days** (Sideloadly can do this automatically) |
 
-## 1. IPA herunterladen
+## 1. Download the IPA
 
-- **Einfach:** Auf der [Releases-Seite](https://github.com/MoinMornhart/RayBanClaude/releases/latest)
-  die Datei `RayBanClaude.ipa` laden. Zum Prüfen liegt `RayBanClaude.ipa.sha256` daneben –
-  unter Windows vergleichen mit: `Get-FileHash RayBanClaude.ipa -Algorithm SHA256`
-- **Neuester Stand:** [Actions → „iOS-App bauen“](https://github.com/MoinMornhart/RayBanClaude/actions/workflows/ios-build.yml)
-  → letzten grünen Lauf öffnen → unten unter *Artifacts* `RayBanClaude-ipa` laden und entpacken
-  (dafür musst du bei GitHub angemeldet sein).
+- **Simple:** On the [Releases page](https://github.com/MoinMornhart/RayBanClaude/releases/latest)
+  download the file `RayBanClaude.ipa`. For verification, `RayBanClaude.ipa.sha256` sits next to it –
+  on Windows compare with: `Get-FileHash RayBanClaude.ipa -Algorithm SHA256`
+- **Latest state:** [Actions → "Build iOS app"](https://github.com/MoinMornhart/RayBanClaude/actions/workflows/ios-build.yml)
+  → open the latest green run → at the bottom under *Artifacts* download `RayBanClaude-ipa` and unzip it
+  (you have to be signed in to GitHub for this).
 
-## 2. Sideloadly einrichten (Windows)
+## 2. Set up Sideloadly (Windows)
 
-1. **iTunes und iCloud** von apple.com installieren – die Versionen *von der Apple-Webseite*,
-   nicht aus dem Microsoft Store (Sideloadly braucht deren Treiber).
-2. **Sideloadly** von <https://sideloadly.io> laden und installieren.
-3. iPhone per **USB-Kabel** anschließen und auf dem iPhone „Diesem Computer vertrauen“ tippen.
+1. Install **iTunes and iCloud** from apple.com – the versions *from the Apple website*,
+   not from the Microsoft Store (Sideloadly needs their drivers).
+2. Download and install **Sideloadly** from <https://sideloadly.io>.
+3. Connect the iPhone with a **USB cable** and tap "Trust This Computer" on the iPhone.
 
-## 3. App aufs iPhone
+## 3. App onto the iPhone
 
-1. Sideloadly öffnen, `RayBanClaude.ipa` ins Fenster ziehen.
-2. Deine **Apple-ID** eintragen → **Start**. (Das Passwort geht nur an Apple; nutze am besten
-   ein App-spezifisches Passwort bzw. eine Zweit-Apple-ID, wenn du vorsichtig sein willst.)
-3. Meldet Sideloadly, die Bundle-ID sei vergeben: unter *Advanced Options* eine eigene
-   Bundle-ID wählen, z. B. `com.deinname.raybanclaude` (**ohne Bindestrich**).
-4. Auf dem iPhone:
-   - *Einstellungen → Allgemein → VPN & Geräteverwaltung →* deine Apple-ID → **Vertrauen**
-   - *Einstellungen → Datenschutz & Sicherheit → Entwicklermodus →* **an** (iPhone startet neu)
+1. Open Sideloadly and drag `RayBanClaude.ipa` into the window.
+2. Enter your **Apple ID** → **Start**. (The password only goes to Apple; if you want to be careful, use
+   an app-specific password or a secondary Apple ID.)
+3. If Sideloadly reports that the bundle ID is taken: under *Advanced Options* choose your own
+   bundle ID, e.g. `com.yourname.raybanclaude` (**without a hyphen**).
+4. On the iPhone:
+   - *Settings → General → VPN & Device Management →* your Apple ID → **Trust**
+   - *Settings → Privacy & Security → Developer Mode →* **on** (the iPhone restarts)
 
-## 4. Alle 7 Tage auffrischen
+## 4. Refresh every 7 days
 
-Mit einer kostenlosen Apple-ID läuft die Signatur nach 7 Tagen ab. In Sideloadly
-„Automatic Refresh“ aktivieren (PC und iPhone im selben WLAN) – dann passiert das von selbst.
-Alternativ einfach Schritt 3 wiederholen; Einstellungen und Kopplung bleiben erhalten.
+With a free Apple ID the signature expires after 7 days. In Sideloadly, enable
+"Automatic Refresh" (PC and iPhone on the same Wi-Fi) – then it happens on its own.
+Alternatively just repeat step 3; settings and pairing are kept.
 
-> Mit einem bezahlten Apple-Developer-Konto (99 €/Jahr) hält die Signatur ein Jahr.
-> Alternativen zu Sideloadly: AltStore oder SideStore.
+> With a paid Apple Developer account (€99/year) the signature lasts a year.
+> Alternatives to Sideloadly: AltStore or SideStore.
 
-## 5. Mit dem PC koppeln
+## 5. Pair with the PC
 
-1. Auf dem PC **„RayBan Claude“** starten (Desktop-Symbol vom [Windows-Installer](https://github.com/MoinMornhart/RayBanClaude/releases/latest/download/RayBanClaude-Setup.exe) oder `start.cmd`) → das Dashboard öffnet sich.
-2. iPhone ins selbe WLAN, die normale **Kamera-App** auf den QR-Code halten.
-3. „In RayBan Claude öffnen“ → **Koppeln** bestätigen. Fertig.
+1. Start **"RayBan Claude"** on the PC (desktop icon from the [Windows installer](https://github.com/MoinMornhart/RayBanClaude/releases/latest/download/RayBanClaude-Setup.exe) or `start.cmd`) → the dashboard opens.
+2. With the iPhone on the same Wi-Fi, point the regular **Camera app** at the QR code.
+3. "Open in RayBan Claude" → confirm **Pair**. Done.
 
-Für **unterwegs über dein Claude-Abo**: vorher Tailscale auf PC und iPhone einrichten – dann steckt die
-Unterwegs-Adresse automatisch im QR-Code ([Anleitung](../README.md#-unterwegs-über-dein-claude-abo)).
+For **on the go via your Claude subscription**: set up Tailscale on PC and iPhone beforehand – then the
+on-the-go address is included in the QR code automatically ([guide](../README.md#-on-the-go-with-your-claude-subscription)).
 
-## Ray-Ban Meta Gen 2 verbinden
+## Connecting the Ray-Ban Meta Gen 2
 
-1. Meta-AI-App → Einstellungen → deine Brille → **Entwicklermodus** an, Brille neu starten.
-2. In RayBan Claude: Einstellungen → **Brille über Meta AI verbinden** → in der Meta-AI-App erlauben.
-3. Unten rechts auf **Brille** tippen und die Kamera-Freigabe bestätigen.
+1. Meta AI app → Settings → your glasses → **Developer mode** on, restart the glasses.
+2. In RayBan Claude: Settings → **Connect glasses via Meta AI** → allow in the Meta AI app.
+3. Tap **Glasses** at the bottom right and confirm the camera permission.
 
-Im Entwicklermodus brauchst du **keine** eigene Meta-App-ID. Erst wenn du die App über
-Meta-Release-Channels an andere verteilen willst, trägst du sie in `ios/Secrets.xcconfig` ein.
+In developer mode you need **no** Meta app ID of your own. Only if you want to distribute the app to others via
+Meta release channels do you enter it in `ios/Secrets.xcconfig`.

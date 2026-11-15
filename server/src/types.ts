@@ -1,10 +1,10 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
-// ── Chat-API (Vertrag mit der iOS-App – nicht ändern) ──
+// ── Chat-API (contract with the iOS app - do not change) ──
 
 export interface ChatRequest {
   text: string;
-  images?: string[]; // Base64-kodierte JPEG-/PNG-Bilder
+  images?: string[]; // Base64-encoded JPEG/PNG images
   conversation_id?: string;
 }
 
@@ -27,7 +27,7 @@ export interface ConfigUpdate {
   max_tokens?: number;
 }
 
-/** Erlaubte Effort-Stufen der Claude API (output_config.effort). */
+/** Allowed effort levels of the Claude API (output_config.effort). */
 export const EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type Effort = (typeof EFFORT_LEVELS)[number];
 
@@ -35,18 +35,18 @@ export interface ServerConfig {
   systemPrompt: string;
   model: string;
   maxTokens: number;
-  /** null = Parameter nicht senden (z. B. für ältere Modelle ohne Effort-Unterstützung) */
+  /** null = do not send the parameter (e.g. for older models without effort support) */
   effort: Effort | null;
 }
 
 // ── MCP ──
 
 export interface MCPServerConfig {
-  // Lokaler stdio-Server
+  // Local stdio server
   command?: string;
   args?: string[];
   env?: Record<string, string>;
-  // Entfernter HTTP/SSE-Server
+  // Remote HTTP/SSE server
   url?: string;
   headers?: Record<string, string>;
 }
@@ -56,13 +56,13 @@ export interface DiscoveredTool {
   name: string;
   description?: string;
   inputSchema: Record<string, unknown>;
-  /** Server kennzeichnet das Werkzeug als „nur lesend“ (MCP-Annotation readOnlyHint) */
+  /** Server marks the tool as "read-only" (MCP annotation readOnlyHint) */
   readOnly: boolean;
 }
 
-// ── Konversation ──
-// Es wird die Beta-Schnittstelle des SDK genutzt (wegen server-seitiger
-// Fallbacks bei Ablehnungen), daher die Beta-Typen.
+// ── Conversation ──
+// The SDK's beta interface is used (because of server-side
+// fallbacks on refusals), hence the beta types.
 
 export type MessageParam = Anthropic.Beta.BetaMessageParam;
 export type ContentBlockParam = Anthropic.Beta.BetaContentBlockParam;

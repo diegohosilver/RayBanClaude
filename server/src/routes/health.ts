@@ -4,9 +4,9 @@ import type { ConversationStore } from "../conversation.js";
 import type { MCPManager } from "../mcp-manager.js";
 import type { SkillLoader } from "../skill-loader.js";
 
-// GET /health         – öffentlich, nur minimaler Status (keine Interna)
-// GET /health/details – nur mit gültigem Token (Auth-Middleware greift,
-//                       weil nur exakt /health öffentlich ist)
+// GET /health         – public, minimal status only (no internals)
+// GET /health/details – only with a valid token (auth middleware applies,
+//                       because only exactly /health is public)
 
 export function createHealthRouter(
   mcpManager: MCPManager,

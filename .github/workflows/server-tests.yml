@@ -1,5 +1,5 @@
-# Prüft Channel-Server (Bun) unter Windows, macOS und Linux sowie den Gateway-Build.
-name: Server testen
+# Checks the channel server (Bun) on Windows, macOS and Linux as well as the gateway build.
+name: Test server
 
 on:
   push:

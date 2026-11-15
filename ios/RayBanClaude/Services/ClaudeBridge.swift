@@ -1,12 +1,12 @@
 import Foundation
 import Network
 
-/// Verbindung zum PC:
-/// - Channel-Modus: WebSocket zur Claude-Code-Sitzung (alle MCP-Tools und Skills, kostenlos mit Abo)
-/// - Gateway-Modus: REST zum eigenständigen Gateway-Server (Anthropic-API-Key)
+/// Connection to the PC:
+/// - Channel mode: WebSocket to the Claude Code session (all MCP tools and skills, free with a subscription)
+/// - Gateway mode: REST to the standalone gateway server (Anthropic API key)
 ///
-/// Der PC kann zwei Adressen haben: die im Heim-WLAN und – für unterwegs – seine Tailscale-Adresse.
-/// Die App probiert sie der Reihe nach (ohne WLAN nur Tailscale) und bleibt bei der, die antwortet.
+/// The PC can have two addresses: the one on the home Wi-Fi and – for on the go – its Tailscale address.
+/// The app tries them in order (without Wi-Fi, only Tailscale) and sticks with the one that responds.
 @MainActor
 final class ClaudeBridge: NSObject, ObservableObject {
     enum ConnectionState: Equatable {
@@ -17,11 +17,11 @@ final class ClaudeBridge: NSObject, ObservableObject {
     }
 
     @Published private(set) var state: ConnectionState = .disconnected
-    /// Verbunden über die Unterwegs-Adresse (Tailscale) statt übers Heim-WLAN
+    /// Connected via the on-the-go address (Tailscale) instead of the home Wi-Fi
     @Published private(set) var isRemote = false
     var isConnected: Bool { state == .connected }
 
-    // MARK: Rückmeldungen an das ViewModel
+    // MARK: Callbacks to the ViewModel
 
     struct Reply {
         let id: String
@@ -38,7 +38,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
     var onPermissionRequest: ((PermissionRequest) -> Void)?
     var onPermissionResolved: ((String) -> Void)?
     var onPhoneAction: ((PhoneAction) -> Void)?
-    /// Claude hat sich (am PC) etwas gemerkt oder vergessen: op = "add" | "remove"
+    /// Claude remembered or forgot something (on the PC): op = "add" | "remove"
     var onMemory: ((_ op: String, _ items: [String]) -> Void)?
     var onServerError: ((String) -> Void)?
     var onConnected: (() -> Void)?
@@ -51,16 +51,16 @@ final class ClaudeBridge: NSObject, ObservableObject {
     private var reconnectAttempts = 0
     private var reconnectWork: DispatchWorkItem?
     private var isManualDisconnect = false
-    /// Gesetzt bei 401/429 – dann nicht endlos neu verbinden, Meldung stehen lassen
+    /// Set on 401/429 – then do not reconnect endlessly, leave the message in place
     private var authFailure: String?
     private var pingTimer: Timer?
     private let maxReconnectAttempts = 8
 
-    /// Adresse, mit der gerade verbunden wird bzw. ist
+    /// Address currently being connected to or connected with
     private var activeHost = ""
-    /// Noch nicht probierte Adressen der laufenden Runde
+    /// Addresses of the current round not yet tried
     private var hostQueue: [String] = []
-    /// Hat das iPhone gerade WLAN (oder Kabel)? Ohne WLAN ist der PC zu Hause nur über Tailscale erreichbar.
+    /// Does the iPhone currently have Wi-Fi (or a cable)? Without Wi-Fi the PC at home is only reachable via Tailscale.
     private var onLocalNetwork = true
     private var networkReachable = true
     private let pathMonitor = NWPathMonitor()
@@ -77,10 +77,10 @@ final class ClaudeBridge: NSObject, ObservableObject {
         pathMonitor.start(queue: .main)
     }
 
-    /// Einstellungen mit der gerade genutzten Adresse
+    /// Settings with the address currently in use
     private var activeConfig: ClaudeConfig { config.using(host: activeHost) }
 
-    /// Reihenfolge der Adressen: zu Hause erst WLAN, dann Tailscale; mit mobilen Daten nur Tailscale.
+    /// Order of addresses: at home Wi-Fi first, then Tailscale; on mobile data only Tailscale.
     private var candidateHosts: [String] {
         let lan = config.gatewayHost.trimmingCharacters(in: .whitespacesAndNewlines)
         let remote = config.remoteHost.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -88,13 +88,13 @@ final class ClaudeBridge: NSObject, ObservableObject {
         return onLocalNetwork ? [lan, remote] : [remote]
     }
 
-    /// Netz gewechselt (WLAN ↔ mobile Daten, Tailscale an): eine aufgegebene Verbindung neu versuchen.
+    /// Network changed (Wi-Fi ↔ mobile data, Tailscale on): retry a connection that was given up.
     private func networkChanged(local: Bool, reachable: Bool) {
         let changed = local != onLocalNetwork || reachable != networkReachable
         onLocalNetwork = local
         networkReachable = reachable
         guard changed, reachable, !isManualDisconnect, authFailure == nil, config.connectionMode.usesPC else { return }
-        // WLAN weg, aber noch über die Heim-Adresse verbunden → die Verbindung ist tot: gleich über Tailscale
+        // Wi-Fi gone but still connected via the home address → the connection is dead: go straight to Tailscale
         if state == .connected, !isRemote, !local, config.hasRemoteHost, config.connectionMode == .channel {
             closeSocket()
             hostQueue.removeAll()
@@ -120,7 +120,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
         if needsReconnect && state != .disconnected { disconnect() }
     }
 
-    // MARK: - Verbinden
+    // MARK: - Connecting
 
     func connect() async {
         isManualDisconnect = false
@@ -129,7 +129,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
         switch config.connectionMode {
         case .channel: openWebSocket()
         case .gateway: await connectGateway()
-        case .direct: state = .disconnected // ohne PC – keine Verbindung nötig
+        case .direct: state = .disconnected // without a PC – no connection needed
         }
     }
 
@@ -145,26 +145,26 @@ final class ClaudeBridge: NSObject, ObservableObject {
     }
 
     private func openWebSocket() {
-        // Neue Runde: alle Adressen in der aktuellen Reihenfolge
+        // New round: all addresses in the current order
         if hostQueue.isEmpty { hostQueue = candidateHosts }
         activeHost = hostQueue.removeFirst()
         guard let wsURL = activeConfig.wsURL else {
-            state = .failed("PC-Adresse fehlt – QR-Code im Dashboard scannen")
+            state = .failed("PC address missing – scan the QR code in the dashboard")
             return
         }
         guard !config.channelToken.isEmpty else {
-            state = .failed("Token fehlt – QR-Code im Dashboard scannen")
+            state = .failed("Token missing – scan the QR code in the dashboard")
             return
         }
         closeSocket()
         authFailure = nil
         state = .connecting
-        // Alte Session freigeben – früher blieben bei jedem Reconnect Sessions samt Delegate hängen
+        // Release the old session – previously sessions with their delegate stuck around on every reconnect
         let session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
         urlSession = session
         var request = URLRequest(url: wsURL)
         request.setValue("Bearer \(config.channelToken)", forHTTPHeaderField: "Authorization")
-        // Kurz halten: ist der PC unter dieser Adresse nicht da, kommt gleich die nächste dran
+        // Keep it short: if the PC is not at this address, the next one is tried right away
         request.timeoutInterval = 6
         let task = session.webSocketTask(with: request)
         task.maximumMessageSize = 16 * 1024 * 1024
@@ -201,12 +201,12 @@ final class ClaudeBridge: NSObject, ObservableObject {
         state = .failed(lastError.localizedDescription)
     }
 
-    // MARK: - Empfangen
+    // MARK: - Receiving
 
     private func receive(on task: URLSessionWebSocketTask) {
         task.receive { [weak self] result in
             Task { @MainActor [weak self] in
-                guard let self, task === self.webSocket else { return } // veraltete Verbindung ignorieren
+                guard let self, task === self.webSocket else { return } // ignore stale connection
                 switch result {
                 case .success(.string(let text)):
                     self.handle(text)
@@ -217,7 +217,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
                 case .success:
                     self.receive(on: task)
                 case .failure(let error):
-                    print("[Verbindung] Empfang beendet: \(error.localizedDescription)")
+                    print("[Connection] Receive ended: \(error.localizedDescription)")
                     self.connectionLost()
                 }
             }
@@ -286,13 +286,13 @@ final class ClaudeBridge: NSObject, ObservableObject {
             guard let op = json["op"] as? String, let items = json["items"] as? [String] else { return }
             onMemory?(op, items)
         case "error":
-            onServerError?(json["message"] as? String ?? "Unbekannter Serverfehler")
+            onServerError?(json["message"] as? String ?? "Unknown server error")
         default:
             break
         }
     }
 
-    // MARK: - Wiederverbinden
+    // MARK: - Reconnecting
 
     private func connectionLost() {
         let wasConnecting = state == .connecting
@@ -302,31 +302,31 @@ final class ClaudeBridge: NSObject, ObservableObject {
             return
         }
         guard state != .disconnected else { return }
-        // PC unter dieser Adresse nicht erreichbar → sofort die nächste (z. B. Tailscale) probieren
+        // PC not reachable at this address → immediately try the next one (e.g. Tailscale)
         if wasConnecting, !hostQueue.isEmpty, !isManualDisconnect {
             openWebSocket()
             return
         }
         hostQueue.removeAll()
         isRemote = false
-        state = .failed(wasConnecting ? unreachableMessage : "Verbindung zum PC verloren")
+        state = .failed(wasConnecting ? unreachableMessage : "Connection to the PC lost")
         onDisconnected?()
         scheduleReconnect()
     }
 
     private var unreachableMessage: String {
-        if config.hasRemoteHost { return "PC nicht erreichbar – läuft er, und ist Tailscale auf dem iPhone an?" }
+        if config.hasRemoteHost { return "PC not reachable – is it running, and is Tailscale on on the iPhone?" }
         return onLocalNetwork
-            ? "PC nicht erreichbar – läuft Claude Code mit dem Channel?"
-            : "Unterwegs ohne Tailscale ist der PC nicht erreichbar – siehe Einstellungen"
+            ? "PC not reachable – is Claude Code running with the channel?"
+            : "On the go without Tailscale the PC is not reachable – see Settings"
     }
 
-    /// Exponentielles Backoff; früher wurde der Zähler bei jedem Versuch zurückgesetzt
-    /// und zwei Wege lösten parallel Reconnects aus.
+    /// Exponential backoff; the counter used to be reset on every attempt
+    /// and two paths triggered reconnects in parallel.
     private func scheduleReconnect() {
         guard !isManualDisconnect, authFailure == nil, config.connectionMode == .channel, reconnectWork == nil else { return }
         guard reconnectAttempts < maxReconnectAttempts else {
-            state = .failed(unreachableMessage) // Netzwechsel startet einen neuen Versuch
+            state = .failed(unreachableMessage) // A network change starts a new attempt
             return
         }
         reconnectAttempts += 1
@@ -350,8 +350,8 @@ final class ClaudeBridge: NSObject, ObservableObject {
                 guard let socket = self?.webSocket else { return }
                 socket.sendPing { error in
                     guard let error else { return }
-                    print("[Verbindung] Ping fehlgeschlagen: \(error.localizedDescription)")
-                    // Tote Verbindung (z. B. Tunnel weg) nicht stehen lassen
+                    print("[Connection] Ping failed: \(error.localizedDescription)")
+                    // Don't leave a dead connection standing (e.g. tunnel gone)
                     Task { @MainActor [weak self] in
                         guard let self, socket === self.webSocket else { return }
                         self.connectionLost()
@@ -361,7 +361,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - Senden (Channel)
+    // MARK: - Sending (channel)
 
     struct Outgoing {
         let id: String
@@ -372,7 +372,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
         var inReplyTo: String?
     }
 
-    /// Sendet über den WebSocket; große Bilder per HTTP-Upload (spart Base64-Aufblähung).
+    /// Sends over the WebSocket; large images via HTTP upload (avoids Base64 bloat).
     func send(_ message: Outgoing) async throws {
         guard state == .connected else { throw BridgeError.notConnected }
         if let image = message.image, image.count > 100_000 {
@@ -380,7 +380,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
                 try await upload(message, image: image)
                 return
             } catch {
-                print("[Verbindung] Upload fehlgeschlagen, sende per WebSocket: \(error.localizedDescription)")
+                print("[Connection] Upload failed, sending via WebSocket: \(error.localizedDescription)")
             }
         }
         var payload: [String: Any] = [
@@ -396,7 +396,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
         try await sendJSON(payload)
     }
 
-    /// Ergebnis einer Handy-Aktion an Claude zurückmelden
+    /// Report the result of a phone action back to Claude
     func sendActionResult(id: String, result: ActionResult) async throws {
         try await sendJSON(["type": "action_result", "id": id, "ok": result.ok, "message": result.message])
     }
@@ -405,7 +405,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
         try await sendJSON(["type": "permission", "request_id": requestId, "behavior": allow ? "allow" : "deny"])
     }
 
-    /// Merkliste an den PC – Claude bekommt sie mit der nächsten Nachricht (nur im Arbeitsspeicher des PCs)
+    /// Memory list to the PC – Claude gets it with the next message (only in the PC's memory)
     func sendMemory(_ items: [String], enabled: Bool) async throws {
         guard state == .connected, config.connectionMode == .channel else { return }
         try await sendJSON(["type": "memory_sync", "items": enabled ? items : [], "enabled": enabled])
@@ -442,11 +442,11 @@ final class ClaudeBridge: NSObject, ObservableObject {
 
         let (_, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        // Der Server antwortet mit 202 (früher wurde nur 204 akzeptiert)
+        // The server responds with 202 (previously only 204 was accepted)
         guard (200...299).contains(status) else { throw BridgeError.http(status) }
     }
 
-    // MARK: - Gateway-Modus (REST)
+    // MARK: - Gateway mode (REST)
 
     func chatREST(text: String, images: [Data]) async throws -> ChatResponse {
         guard let url = activeConfig.chatURL else { throw BridgeError.notConfigured }
@@ -469,9 +469,9 @@ final class ClaudeBridge: NSObject, ObservableObject {
         conversationId = nil
     }
 
-    // MARK: - Hilfen
+    // MARK: - Helpers
 
-    /// Anfrage mit Token – für den Channel als Bearer, für das Gateway zusätzlich als X-Gateway-Key.
+    /// Request with token – as Bearer for the channel, additionally as X-Gateway-Key for the gateway.
     func authorizedRequest(_ url: URL) -> URLRequest {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(config.channelToken)", forHTTPHeaderField: "Authorization")
@@ -483,7 +483,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
         activeConfig.fileURL(path).map(authorizedRequest)
     }
 
-    /// Prüft Erreichbarkeit UND Token (der öffentliche /health-Endpunkt allein reicht dafür nicht).
+    /// Checks reachability AND token (the public /health endpoint alone is not enough for that).
     func checkAuthorized() async throws {
         guard let url = activeConfig.authCheckURL else { throw BridgeError.notConfigured }
         var request = authorizedRequest(url)
@@ -494,7 +494,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
     }
 }
 
-// MARK: - WebSocket-Delegate
+// MARK: - WebSocket delegate
 
 extension ClaudeBridge: URLSessionWebSocketDelegate {
     nonisolated func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask,
@@ -511,7 +511,7 @@ extension ClaudeBridge: URLSessionWebSocketDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let message = BridgeError.http(status).localizedDescription
-            self.authFailure = message // falsches Token: nicht endlos neu versuchen
+            self.authFailure = message // wrong token: don't retry endlessly
             self.reconnectWork?.cancel()
             self.reconnectWork = nil
             self.state = .failed(message)
@@ -526,12 +526,12 @@ enum BridgeError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConnected: return "Nicht mit dem PC verbunden"
-        case .notConfigured: return "PC-Adresse fehlt – QR-Code im Dashboard scannen"
-        case .http(401): return "Token falsch – QR-Code im Dashboard neu scannen"
-        case .http(429): return "Zu viele Fehlversuche – 15 Minuten warten"
-        case .http(503): return "Claude ist gerade überlastet – gleich nochmal versuchen"
-        case .http(let code): return "PC antwortet mit Fehler \(code)"
+        case .notConnected: return "Not connected to the PC"
+        case .notConfigured: return "PC address missing – scan the QR code in the dashboard"
+        case .http(401): return "Wrong token – rescan the QR code in the dashboard"
+        case .http(429): return "Too many failed attempts – wait 15 minutes"
+        case .http(503): return "Claude is currently overloaded – try again in a moment"
+        case .http(let code): return "PC responded with error \(code)"
         }
     }
 }

@@ -1,11 +1,11 @@
-﻿; RayBan Claude – Windows-Installer (Inno Setup 6)
+﻿; RayBan Claude – Windows installer (Inno Setup 6)
 ;
-; Baut RayBanClaude-Setup.exe: kopiert Channel und Skripte nach %LOCALAPPDATA%\Programs\RayBanClaude
-; (keine Administrator-Rechte nötig), richtet Bun und Claude Code mit den offiziellen Installern ein,
-; öffnet auf Wunsch die Windows-Firewall (fragt dann einmal nach Administrator-Rechten) und legt
-; „RayBan Claude“ auf den Desktop und ins Startmenü.
+; Builds RayBanClaude-Setup.exe: copies the channel and scripts to %LOCALAPPDATA%\Programs\RayBanClaude
+; (no administrator rights needed), sets up Bun and Claude Code with the official installers,
+; opens the Windows firewall on request (asks for administrator rights once) and places
+; “RayBan Claude” on the desktop and in the Start menu.
 ;
-; Gebaut wird in GitHub Actions (.github/workflows/windows-installer.yml):
+; Built in GitHub Actions (.github/workflows/windows-installer.yml):
 ;   ISCC.exe /DAppVersion=2.1.0 installer\RayBanClaude.iss
 
 #define AppName "RayBan Claude"
@@ -37,20 +37,20 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 ShowLanguageDialog=no
-; Bun braucht Windows 10 Version 1809 oder neuer
+; Bun needs Windows 10 version 1809 or newer
 MinVersion=10.0.17763
 CloseApplications=yes
 
 [Languages]
-Name: "de"; MessagesFile: "compiler:Languages\German.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
-de.WelcomeLabel2=Damit sieht Claude, was du siehst – mit deiner Ray-Ban Meta (Gen 2) oder deinem iPhone.%n%nDer Installer richtet alles ein, was dein PC braucht: Bun und Claude Code (offizielle Installer, kostenlos), den RayBan-Claude-Channel und – falls installiert – die Verknüpfung mit der Claude-Desktop-App. Für Claude brauchst du ein Claude-Abo (Pro oder Max).%n%nInoffizielles Open-Source-Projekt – nicht verbunden mit Meta, Ray-Ban oder Anthropic.
-de.FinishedLabel=RayBan Claude ist eingerichtet.%n%nBeim ersten Start meldest du dich einmal bei Claude an (der Browser öffnet sich) und bestätigst „Use this MCP server“. Danach öffnet sich das Dashboard – dort den QR-Code mit der iPhone-Kamera scannen.%n%nDie iPhone-App installierst du ohne Mac mit Sideloadly (Anleitung im Startmenü).
+english.WelcomeLabel2=This lets Claude see what you see – with your Ray-Ban Meta (Gen 2) or your iPhone.%n%nThe installer sets up everything your PC needs: Bun and Claude Code (official installers, free), the RayBan Claude channel and – if installed – the link to the Claude desktop app. You need a Claude subscription (Pro or Max) to use Claude.%n%nUnofficial open-source project – not affiliated with Meta, Ray-Ban or Anthropic.
+english.FinishedLabel=RayBan Claude is set up.%n%nOn first launch you sign in to Claude once (your browser opens) and confirm “Use this MCP server”. The dashboard then opens – scan the QR code there with the iPhone camera.%n%nYou install the iPhone app without a Mac using Sideloadly (instructions in the Start menu).
 
 [Tasks]
-Name: "desktopicon"; Description: "Symbol „RayBan Claude“ auf dem Desktop anlegen"
-Name: "firewall"; Description: "Windows-Firewall für das iPhone öffnen (nur Heim-WLAN und Tailscale – fragt nach Administrator-Rechten)"
+Name: "desktopicon"; Description: "Create a “RayBan Claude” icon on the desktop"
+Name: "firewall"; Description: "Open the Windows firewall for the iPhone (home Wi-Fi and Tailscale only – asks for administrator rights)"
 
 [Files]
 Source: "..\channel\*"; DestDir: "{app}\channel"; Excludes: "\node_modules\*,\test\*,*.log"; Flags: recursesubdirs ignoreversion
@@ -66,23 +66,23 @@ Source: "..\docs\IPHONE-OHNE-MAC.md"; DestDir: "{app}\docs"; Flags: ignoreversio
 Source: "RayBanClaude.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\RayBan Claude\RayBan Claude"; Filename: "{app}\start.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\RayBanClaude.ico"; Comment: "Claude mit Ray-Ban Meta und iPhone starten"
-Name: "{autoprograms}\RayBan Claude\Neues Gespräch"; Filename: "{app}\start.cmd"; Parameters: "-Neu"; WorkingDir: "{app}"; IconFilename: "{app}\RayBanClaude.ico"; Comment: "RayBan Claude ohne das letzte Gespräch starten"
-Name: "{autoprograms}\RayBan Claude\Einrichtung wiederholen"; Filename: "{app}\setup.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\RayBanClaude.ico"
-Name: "{autoprograms}\RayBan Claude\iPhone-App installieren (Anleitung)"; Filename: "{#RepoUrl}/blob/main/docs/IPHONE-OHNE-MAC.md"
-Name: "{autoprograms}\RayBan Claude\RayBan Claude deinstallieren"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\RayBan Claude"; Filename: "{app}\start.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\RayBanClaude.ico"; Comment: "Claude mit Ray-Ban Meta und iPhone starten"; Tasks: desktopicon
+Name: "{autoprograms}\RayBan Claude\RayBan Claude"; Filename: "{app}\start.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\RayBanClaude.ico"; Comment: "Start Claude with Ray-Ban Meta and iPhone"
+Name: "{autoprograms}\RayBan Claude\New conversation"; Filename: "{app}\start.cmd"; Parameters: "-Neu"; WorkingDir: "{app}"; IconFilename: "{app}\RayBanClaude.ico"; Comment: "Start RayBan Claude without the last conversation"
+Name: "{autoprograms}\RayBan Claude\Repeat setup"; Filename: "{app}\setup.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\RayBanClaude.ico"
+Name: "{autoprograms}\RayBan Claude\Install the iPhone app (guide)"; Filename: "{#RepoUrl}/blob/main/docs/IPHONE-OHNE-MAC.md"
+Name: "{autoprograms}\RayBan Claude\Uninstall RayBan Claude"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\RayBan Claude"; Filename: "{app}\start.cmd"; WorkingDir: "{app}"; IconFilename: "{app}\RayBanClaude.ico"; Comment: "Start Claude with Ray-Ban Meta and iPhone"; Tasks: desktopicon
 
 [Run]
-; Bun, Claude Code (offizielle Installer) und die Channel-Abhängigkeiten – im sichtbaren Fenster
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\setup.ps1"" -Unattended"; WorkingDir: "{app}"; StatusMsg: "Richte Bun, Claude Code und den Channel ein …"; Flags: waituntilterminated
-; Firewall: nur dieser Schritt braucht Administrator-Rechte
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\firewall.ps1"""; Verb: "runas"; StatusMsg: "Öffne die Windows-Firewall für das iPhone …"; Flags: shellexec waituntilterminated; Tasks: firewall
-Filename: "{app}\start.cmd"; WorkingDir: "{app}"; Description: "RayBan Claude jetzt starten"; Flags: postinstall shellexec nowait skipifsilent
-Filename: "{#RepoUrl}/blob/main/docs/IPHONE-OHNE-MAC.md"; Description: "Anleitung öffnen: App aufs iPhone (ohne Mac)"; Flags: postinstall shellexec nowait skipifsilent unchecked
+; Bun, Claude Code (official installers) and the channel dependencies – in a visible window
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\setup.ps1"" -Unattended"; WorkingDir: "{app}"; StatusMsg: "Setting up Bun, Claude Code and the channel …"; Flags: waituntilterminated
+; Firewall: only this step needs administrator rights
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\firewall.ps1"""; Verb: "runas"; StatusMsg: "Opening the Windows firewall for the iPhone …"; Flags: shellexec waituntilterminated; Tasks: firewall
+Filename: "{app}\start.cmd"; WorkingDir: "{app}"; Description: "Start RayBan Claude now"; Flags: postinstall shellexec nowait skipifsilent
+Filename: "{#RepoUrl}/blob/main/docs/IPHONE-OHNE-MAC.md"; Description: "Open the guide: app on the iPhone (without a Mac)"; Flags: postinstall shellexec nowait skipifsilent unchecked
 
 [UninstallRun]
-; Verknüpfung mit der Claude-Desktop-App wieder austragen
+; Remove the link to the Claude desktop app again
 Filename: "{%USERPROFILE}\.bun\bin\bun.exe"; Parameters: """{app}\channel\link-desktop.ts"" --remove"; Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "ClaudeAppTrennen"
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\firewall.ps1"" -Remove"; Verb: "runas"; Flags: shellexec waituntilterminated; RunOnceId: "FirewallEntfernen"
 

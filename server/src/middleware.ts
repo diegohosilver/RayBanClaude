@@ -10,13 +10,13 @@ import {
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60_000;
 const MAX_LOGGED_PATH_LENGTH = 120;
-const UNKNOWN_IP = "unbekannt";
+const UNKNOWN_IP = "unknown";
 
-// ── Security-Header ─────────────────────────────────────────────────
-// Der Server liefert ausschließlich JSON an die iOS-App bzw. curl aus.
-// HTTPS/HSTS ist im lokalen WLAN-Betrieb (http://<rechner>:18790) nicht
-// möglich; HSTS ist nur hinter einem TLS-Proxy sinnvoll und wird deshalb
-// nur gesetzt, wenn die Anfrage tatsächlich über TLS kam (req.secure).
+// ── Security headers ─────────────────────────────────────────────────
+// The server only serves JSON to the iOS app or curl.
+// HTTPS/HSTS is not possible in local Wi-Fi operation (http://<host>:18790);
+// HSTS only makes sense behind a TLS proxy and is therefore only set
+// when the request actually came in over TLS (req.secure).
 
 const HSTS_VALUE = "max-age=31536000; includeSubDomains";
 
@@ -35,24 +35,24 @@ export function securityHeaders(): RequestHandler {
   };
 }
 
-// ── Hilfsfunktionen ─────────────────────────────────────────────────
+// ── Helper functions ─────────────────────────────────────────────────
 
 /**
- * IP des Clients. "trust proxy" ist bewusst NICHT aktiviert – X-Forwarded-For
- * wird ignoriert, damit Angreifer ihre IP für die Sperre nicht fälschen können.
+ * IP of the client. "trust proxy" is deliberately NOT enabled - X-Forwarded-For
+ * is ignored so attackers cannot spoof their IP to evade the block.
  */
 function clientIp(req: Request): string {
   return req.ip ?? req.socket.remoteAddress ?? UNKNOWN_IP;
 }
 
-/** Pfad für Logs: gekürzt und als JSON-String (verhindert Log-Injection). */
+/** Path for logs: truncated and as a JSON string (prevents log injection). */
 function loggablePath(req: Request): string {
   return JSON.stringify(req.path.slice(0, MAX_LOGGED_PATH_LENGTH));
 }
 
-// ── Brute-Force-Schutz ──────────────────────────────────────────────
-// Zählt fehlgeschlagene Auth-Versuche pro IP. Nach FAILURE_LIMIT Fehlversuchen
-// innerhalb von FAILURE_WINDOW wird die IP für BLOCK_DURATION gesperrt (429).
+// ── Brute-force protection ──────────────────────────────────────────────
+// Counts failed auth attempts per IP. After FAILURE_LIMIT failures
+// within FAILURE_WINDOW, the IP is blocked for BLOCK_DURATION (429).
 
 const FAILURE_LIMIT = 10;
 const FAILURE_WINDOW_MINUTES = 15;
@@ -61,7 +61,7 @@ const CLEANUP_INTERVAL_MINUTES = 5;
 const MAX_TRACKED_IPS = 10_000;
 
 interface FailureEntry {
-  readonly failures: readonly number[]; // Zeitstempel der Fehlversuche
+  readonly failures: readonly number[]; // timestamps of the failed attempts
   readonly blockedUntil: number;
 }
 
@@ -76,17 +76,17 @@ export class AuthFailureTracker {
       () => this.cleanup(Date.now()),
       CLEANUP_INTERVAL_MINUTES * MS_PER_MINUTE
     );
-    // Timer soll das Beenden des Prozesses nicht verhindern
+    // The timer must not keep the process from exiting
     this.cleanupTimer.unref();
   }
 
-  /** Verbleibende Sperrzeit in ms (0 = nicht gesperrt). */
+  /** Remaining block time in ms (0 = not blocked). */
   blockedRemainingMs(ip: string, now: number): number {
     const entry = this.entries.get(ip);
     return entry && entry.blockedUntil > now ? entry.blockedUntil - now : 0;
   }
 
-  /** Registriert einen Fehlversuch; true, wenn die IP dadurch gesperrt wurde. */
+  /** Records a failed attempt; true if the IP was blocked as a result. */
   recordFailure(ip: string, now: number): boolean {
     const previous = this.entries.get(ip);
     const recent = (previous?.failures ?? []).filter((t) => now - t < this.windowMs);
@@ -102,7 +102,7 @@ export class AuthFailureTracker {
     return blocked;
   }
 
-  /** Erfolgreiche Anmeldung setzt den Zähler zurück. */
+  /** A successful login resets the counter. */
   recordSuccess(ip: string): void {
     this.entries.delete(ip);
   }
@@ -122,7 +122,7 @@ export class AuthFailureTracker {
       .forEach(([ip]) => this.entries.delete(ip));
   }
 
-  /** Begrenzt den Speicherbedarf: notfalls ältesten Eintrag verwerfen. */
+  /** Limits memory usage: discard the oldest entry if necessary. */
   private ensureCapacity(now: number): void {
     if (this.entries.size < MAX_TRACKED_IPS) return;
     this.cleanup(now);
@@ -134,9 +134,9 @@ export class AuthFailureTracker {
   }
 }
 
-// ── Gateway-Auth ────────────────────────────────────────────────────
-// Token ist Pflicht für alle Endpunkte außer GET/HEAD /health.
-// Akzeptiert: "Authorization: Bearer <token>" und "X-Gateway-Key: <token>".
+// ── Gateway auth ────────────────────────────────────────────────────
+// A token is required for all endpoints except GET/HEAD /health.
+// Accepted: "Authorization: Bearer <token>" and "X-Gateway-Key: <token>".
 
 const PUBLIC_PATHS: ReadonlySet<string> = new Set(["/health", "/health/"]);
 const PUBLIC_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
@@ -152,7 +152,7 @@ function singleHeader(req: Request, name: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-/** Liest alle vom Client mitgeschickten Token-Kandidaten aus den Headern. */
+/** Reads all token candidates sent by the client from the headers. */
 function extractTokens(req: Request): string[] {
   const authorization = singleHeader(req, "authorization");
   const hasBearer =
@@ -165,11 +165,11 @@ function extractTokens(req: Request): string[] {
   );
 }
 
-/** Zeitkonstanter Vergleich (Längen werden vorher geprüft). */
+/** Constant-time comparison (lengths are checked beforehand). */
 function tokenMatches(candidate: string, expected: Buffer): boolean {
   const given = Buffer.from(candidate, "utf8");
   if (given.length !== expected.length) {
-    // Vergleich trotzdem ausführen, damit die Laufzeit nichts verrät
+    // Run a comparison anyway so the runtime reveals nothing
     timingSafeEqual(expected, expected);
     return false;
   }
@@ -193,7 +193,7 @@ export function gatewayAuth(token: string, tracker: AuthFailureTracker): Request
       sendError(
         res,
         HTTP_TOO_MANY_REQUESTS,
-        "Zu viele fehlgeschlagene Anmeldeversuche – bitte später erneut versuchen."
+        "Too many failed login attempts - please try again later."
       );
       return;
     }
@@ -205,17 +205,17 @@ export function gatewayAuth(token: string, tracker: AuthFailureTracker): Request
     }
 
     const nowBlocked = tracker.recordFailure(ip, now);
-    const blockNote = nowBlocked ? ` – IP für ${BLOCK_DURATION_MINUTES} Minuten gesperrt` : "";
+    const blockNote = nowBlocked ? ` - IP blocked for ${BLOCK_DURATION_MINUTES} minutes` : "";
     console.warn(
       c.label("[Auth]") +
-        c.warn(` Abgelehnt: ${req.method} ${loggablePath(req)} von ${ip}${blockNote}`)
+        c.warn(` Rejected: ${req.method} ${loggablePath(req)} from ${ip}${blockNote}`)
     );
-    sendError(res, HTTP_UNAUTHORIZED, "Nicht autorisiert – gültiges Gateway-Token erforderlich.");
+    sendError(res, HTTP_UNAUTHORIZED, "Unauthorized - valid gateway token required.");
   };
 }
 
-// ── Rate-Limiter ────────────────────────────────────────────────────
-// Begrenzt Anfragen pro IP und Zeitfenster (gilt nach erfolgreicher Auth).
+// ── Rate limiter ────────────────────────────────────────────────────
+// Limits requests per IP and time window (applies after successful auth).
 
 const DEFAULT_RATE_LIMIT = 30;
 
@@ -235,7 +235,7 @@ export function rateLimiter(
 ): RateLimiter {
   const clients = new Map<string, RateLimitEntry>();
 
-  // Abgelaufene Einträge regelmäßig entfernen
+  // Remove expired entries regularly
   const cleanupTimer = setInterval(() => {
     const now = Date.now();
     [...clients]
@@ -264,9 +264,9 @@ export function rateLimiter(
     res.setHeader("X-RateLimit-Reset", Math.ceil(entry.resetAt / MS_PER_SECOND));
 
     if (entry.count > maxRequests) {
-      console.warn(c.label("[RateLimit]") + c.warn(` ${ip} hat das Limit überschritten`));
+      console.warn(c.label("[RateLimit]") + c.warn(` ${ip} exceeded the limit`));
       res.setHeader("Retry-After", String(Math.ceil((entry.resetAt - now) / MS_PER_SECOND)));
-      sendError(res, HTTP_TOO_MANY_REQUESTS, "Zu viele Anfragen – bitte kurz warten.");
+      sendError(res, HTTP_TOO_MANY_REQUESTS, "Too many requests - please wait a moment.");
       return;
     }
 
@@ -282,17 +282,17 @@ export function rateLimiter(
   };
 }
 
-// ── Anfrage-Warteschlange ───────────────────────────────────────────
-// Begrenzt gleichzeitige Claude-API-Aufrufe und die Länge der Warteschlange,
-// damit der Server bei Überlast schnell mit 503 antwortet statt zu stauen.
+// ── Request queue ───────────────────────────────────────────
+// Limits concurrent Claude API calls and the queue length so that
+// under overload the server quickly answers with 503 instead of piling up.
 
 const DEFAULT_MAX_CONCURRENT = 2;
 const DEFAULT_MAX_QUEUED = 10;
 
-/** Die Warteschlange ist voll – Anfrage wird abgewiesen. */
+/** The queue is full - request is rejected. */
 export class QueueFullError extends Error {
   constructor() {
-    super("Anfrage-Warteschlange ist voll");
+    super("Request queue is full");
     this.name = "QueueFullError";
   }
 }

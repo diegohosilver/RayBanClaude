@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Demo-Modus für Screenshots (Simulator ohne Kamera, PC und Brille).
-/// Start mit den Argumenten `-demo`, optional `-demoConfirm` oder `-demoSettings`.
+/// Demo mode for screenshots (simulator without camera, PC and glasses).
+/// Start with the arguments `-demo`, optionally `-demoConfirm` or `-demoSettings`.
 enum DemoMode {
     private static let arguments = ProcessInfo.processInfo.arguments
 
@@ -10,7 +10,7 @@ enum DemoMode {
     static var showConfirmation: Bool { isActive && arguments.contains("-demoConfirm") }
 }
 
-/// Nachgebautes Kamerabild: Typenschild einer Gastherme mit Störcode
+/// Mocked-up camera image: rating plate of a gas boiler with an error code
 struct DemoSceneView: View {
     var body: some View {
         ZStack {
@@ -18,12 +18,12 @@ struct DemoSceneView: View {
                            startRadius: 20, endRadius: 520)
             VStack(alignment: .leading, spacing: 5) {
                 Text("THERMAVIA").font(.system(size: 26, weight: .heavy, design: .rounded)).tracking(2)
-                Text("CondensPro 24 · Gas-Brennwert").font(.system(size: 13, weight: .medium, design: .monospaced))
+                Text("CondensPro 24 · Gas condensing").font(.system(size: 13, weight: .medium, design: .monospaced))
                 Divider().overlay(.black.opacity(0.3))
-                row("Baujahr", "2014")
-                row("Nennleistung", "4,8–24 kW")
-                row("Gasart", "G20 · 20 mbar")
-                row("Serien-Nr.", "2114-0587-6632")
+                row("Year built", "2014")
+                row("Rated output", "4.8–24 kW")
+                row("Gas type", "G20 · 20 mbar")
+                row("Serial no.", "2114-0587-6632")
                 Text("F28")
                     .font(.system(size: 15, weight: .bold, design: .monospaced))
                     .foregroundStyle(Color(red: 1, green: 0.42, blue: 0.36))

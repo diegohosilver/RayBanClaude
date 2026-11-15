@@ -30,16 +30,16 @@ struct SettingsView: View {
                 .hudSection()
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Einstellungen")
+            .navigationTitle("Settings")
             .hudList()
             .sheet(isPresented: $showRayBanInstructions) { RayBanInstructionsView() }
             .sheet(isPresented: $showAddCustomMode) { AddCustomModeView(modeManager: modeManager) }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Fertig") { dismiss() }.fontWeight(.semibold)
+                    Button("Done") { dismiss() }.fontWeight(.semibold)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(viewModel.isConnected ? "Neu verbinden" : "Verbinden") {
+                    Button(viewModel.isConnected ? "Reconnect" : "Connect") {
                         Task { await viewModel.connect() }
                         dismiss()
                     }
@@ -50,7 +50,7 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Verbindung
+    // MARK: - Connection
 
     private var connectionSection: some View {
         Section {
@@ -61,7 +61,7 @@ struct SettingsView: View {
                     .foregroundStyle(statusColor)
                     .hudGlow(statusColor)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(viewModel.isConnected ? "Verbunden" : "Nicht verbunden")
+                    Text(viewModel.isConnected ? "Connected" : "Not connected")
                         .font(.hudDisplay(15))
                         .textCase(.uppercase)
                         .foregroundStyle(Color.hudInk)
@@ -71,19 +71,19 @@ struct SettingsView: View {
             }
             .padding(.vertical, 4)
 
-            Picker("Verbindungsart", selection: $viewModel.config.connectionMode) {
+            Picker("Connection type", selection: $viewModel.config.connectionMode) {
                 ForEach(ConnectionMode.allCases) { Text($0.label).tag($0) }
             }
 
             if viewModel.config.connectionMode.usesPC {
-                LabeledContent("PC-Adresse") {
+                LabeledContent("PC address") {
                     TextField("192.168.178.20", text: $viewModel.config.gatewayHost)
                         .multilineTextAlignment(.trailing)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
                 }
-                LabeledContent("Unterwegs (Tailscale)") {
+                LabeledContent("Away (Tailscale)") {
                     TextField("100.x.y.z – optional", text: $viewModel.config.remoteHost)
                         .multilineTextAlignment(.trailing)
                         .textInputAutocapitalization(.never)
@@ -91,7 +91,7 @@ struct SettingsView: View {
                         .keyboardType(.URL)
                 }
                 LabeledContent("Port") {
-                    // Eigener Textzustand: früher sprang das Feld beim Löschen sofort auf 18790 zurück
+                    // Separate text state: the field used to jump straight back to 18790 when deleting
                     TextField("18790", text: $portText)
                         .multilineTextAlignment(.trailing)
                         .keyboardType(.numberPad)
@@ -100,7 +100,7 @@ struct SettingsView: View {
                         }
                 }
                 LabeledContent("Token") {
-                    SecureField("aus dem Dashboard", text: $viewModel.config.channelToken)
+                    SecureField("from the dashboard", text: $viewModel.config.channelToken)
                         .multilineTextAlignment(.trailing)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -110,7 +110,7 @@ struct SettingsView: View {
                     testConnection()
                 } label: {
                     HStack {
-                        Label("Verbindung testen", systemImage: "bolt.horizontal.circle")
+                        Label("Test connection", systemImage: "bolt.horizontal.circle")
                         Spacer()
                         if isTesting {
                             ProgressView()
@@ -121,43 +121,43 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            HUDLabel("Verbindung")
+            HUDLabel("Connection")
         } footer: {
             Text(connectionFooter)
         }
     }
 
     private var connectionDetail: String {
-        guard viewModel.isConnected else { return "QR-Code scannen oder Daten eintragen" }
-        return viewModel.viaTailscale ? "Unterwegs über Tailscale – läuft über dein Claude-Abo" : "PC erreichbar, Token gültig"
+        guard viewModel.isConnected else { return "Scan the QR code or enter the details" }
+        return viewModel.viaTailscale ? "Away via Tailscale – runs on your Claude subscription" : "PC reachable, token valid"
     }
 
     private var connectionFooter: String {
         switch viewModel.config.connectionMode {
         case .channel:
-            return "Am einfachsten: Auf dem PC start.cmd doppelklicken und den QR-Code im Dashboard mit der iPhone-Kamera scannen. Kostenlos mit deinem Claude-Abo, alle PC-Werkzeuge verfügbar. Unterwegs: Tailscale (kostenlos) auf PC und iPhone installieren und neu koppeln – dann fragt die App auch über mobile Daten deinen PC zu Hause, weiter über dein Abo."
+            return "Easiest way: double-click start.cmd on the PC and scan the QR code in the dashboard with the iPhone camera. Free with your Claude subscription, all PC tools available. Away from home: install Tailscale (free) on the PC and iPhone and pair again – then the app reaches your PC at home over mobile data too, still on your subscription."
         case .gateway:
-            return "Gateway-Modus: eigener Server auf dem PC mit Anthropic-API-Key (kostet pro Anfrage). Das Token steht beim Start im Server-Fenster."
+            return "Gateway mode: standalone server on the PC with an Anthropic API key (pay per request). The token is shown in the server window at startup."
         case .direct:
-            return "Ohne PC: Das iPhone fragt Claude direkt über das Internet (auch mobile Daten). Braucht einen API-Key, siehe unten."
+            return "No PC: the iPhone asks Claude directly over the internet (mobile data works too). Needs an API key, see below."
         }
     }
 
-    // MARK: - Ohne PC
+    // MARK: - No PC
 
     private var directSection: some View {
         Section {
-            LabeledContent("API-Key") {
+            LabeledContent("API key") {
                 SecureField("sk-ant-…", text: $viewModel.config.anthropicAPIKey)
                     .multilineTextAlignment(.trailing)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             }
             if !viewModel.config.anthropicAPIKey.isEmpty && !viewModel.config.hasDirectKey {
-                Label("Das sieht nicht wie ein Anthropic-API-Key aus (beginnt mit sk-ant-)", systemImage: "exclamationmark.triangle")
+                Label("This does not look like an Anthropic API key (starts with sk-ant-)", systemImage: "exclamationmark.triangle")
                     .font(.caption).foregroundStyle(Color.hudWarn)
             }
-            Picker("Modell", selection: $viewModel.config.directModel) {
+            Picker("Model", selection: $viewModel.config.directModel) {
                 ForEach(DirectClaudeClient.models) { model in
                     VStack(alignment: .leading) {
                         Text(model.name)
@@ -167,20 +167,20 @@ struct SettingsView: View {
                 }
             }
             if viewModel.config.connectionMode.usesPC {
-                Toggle("Automatisch, wenn der PC nicht erreichbar ist", isOn: $viewModel.config.directFallback)
+                Toggle("Automatic when the PC is unreachable", isOn: $viewModel.config.directFallback)
             }
-            Toggle("Websuche (Wetter, Öffnungszeiten …)", isOn: $viewModel.config.webSearchEnabled)
+            Toggle("Web search (weather, opening hours …)", isOn: $viewModel.config.webSearchEnabled)
             if let url = URL(string: "https://console.anthropic.com/settings/keys") {
-                Link(destination: url) { Label("API-Key bei Anthropic erstellen", systemImage: "key") }
+                Link(destination: url) { Label("Create an API key at Anthropic", systemImage: "key") }
             }
         } header: {
-            HUDLabel("Ohne PC (unterwegs)")
+            HUDLabel("No PC (on the go)")
         } footer: {
-            Text("Kostet pro Frage – mit Claude Opus 5.5 meist 1–3 Cent, Sonnet etwa die Hälfte, Haiku ein Bruchteil; jede Websuche ca. 1 Cent. Dein Claude-Abo gilt hier nicht – über dein Abo geht es unterwegs nur mit Tailscale (siehe oben). Werkzeuge vom PC (E-Mail, Dateien) gibt es ohne PC nicht – Timer, Anrufe, Navigation und Fotos schon. Der Key liegt nur im Schlüsselbund dieses iPhones.")
+            Text("Costs per question – with Claude Opus 5.5 usually 1–3 cents, Sonnet about half, Haiku a fraction; each web search about 1 cent. Your Claude subscription does not apply here – on the go it only works through your subscription with Tailscale (see above). PC tools (email, files) are not available without the PC – timers, calls, navigation and photos are. The key is stored only in this iPhone's Keychain.")
         }
     }
 
-    // MARK: - Gedächtnis
+    // MARK: - Memory
 
     private var memorySection: some View {
         Section {
@@ -188,19 +188,19 @@ struct SettingsView: View {
                 MemoryView(memory: viewModel.memory, enabled: $viewModel.config.memoryEnabled)
             } label: {
                 LabeledContent {
-                    Text(viewModel.config.memoryEnabled ? "\(viewModel.memory.items.count) Einträge" : "aus")
+                    Text(viewModel.config.memoryEnabled ? "\(viewModel.memory.items.count) entries" : "off")
                 } label: {
-                    Label("Was Claude über dich weiß", systemImage: "brain.head.profile")
+                    Label("What Claude knows about you", systemImage: "brain.head.profile")
                 }
             }
         } header: {
-            HUDLabel("Gedächtnis")
+            HUDLabel("Memory")
         } footer: {
-            Text("„Hey Claude, merk dir …“ – Claude behält es, mit und ohne PC. Aus deinen Claude-Chats kommt dein Wissen per Einfügen oder direkt über die Claude-Desktop-App am PC („Übertrag, was du über mich weißt, an die Brille“).")
+            Text("\"Hey Claude, remember …\" – Claude keeps it, with or without the PC. Knowledge from your Claude chats comes in by pasting or directly through the Claude desktop app on the PC (\"Transfer what you know about me to the glasses\").")
         }
     }
 
-    // MARK: - Modi
+    // MARK: - Modes
 
     private var modesSection: some View {
         Section {
@@ -223,20 +223,20 @@ struct SettingsView: View {
             Button {
                 showAddCustomMode = true
             } label: {
-                Label("Eigenen Modus anlegen", systemImage: "plus.circle.fill")
+                Label("Create custom mode", systemImage: "plus.circle.fill")
             }
         } header: {
-            HUDLabel("Experten-Modi")
+            HUDLabel("Expert modes")
         } footer: {
-            Text("Modi geben Claude Fachwissen und Antwortstil vor. Aktiver Modus: \(modeManager.activeMode.name). Eigene Modi zum Löschen nach links wischen.")
+            Text("Modes give Claude expertise and an answer style. Active mode: \(modeManager.activeMode.name). Swipe left to delete custom modes.")
         }
     }
 
-    // MARK: - Kamera
+    // MARK: - Camera
 
     private var cameraSection: some View {
         Section {
-            Picker("Kamera", selection: $viewModel.activeFrameSource) {
+            Picker("Camera", selection: $viewModel.activeFrameSource) {
                 ForEach(FrameSourceType.allCases) { Label($0.rawValue, systemImage: $0.icon).tag($0) }
             }
             .pickerStyle(.segmented)
@@ -244,21 +244,21 @@ struct SettingsView: View {
             LabeledContent("Status", value: viewModel.frameSourceStatus.label)
 
             VStack(alignment: .leading) {
-                LabeledContent("Bild an Claude alle", value: String(format: "%.1f s", viewModel.config.videoFrameInterval))
+                LabeledContent("Send image to Claude every", value: String(format: "%.1f s", viewModel.config.videoFrameInterval))
                 Slider(value: $viewModel.config.videoFrameInterval, in: 0.5...5.0, step: 0.5)
             }
             VStack(alignment: .leading) {
-                LabeledContent("JPEG-Qualität", value: "\(Int(viewModel.config.videoJPEGQuality * 100)) %")
+                LabeledContent("JPEG quality", value: "\(Int(viewModel.config.videoJPEGQuality * 100)) %")
                 Slider(value: $viewModel.config.videoJPEGQuality, in: 0.3...1.0, step: 0.05)
             }
         } header: {
-            HUDLabel("Kamera")
+            HUDLabel("Camera")
         } footer: {
-            Text("Mit jeder Frage geht das aktuelle Bild an Claude. Höhere Qualität hilft beim Lesen von Text, braucht aber mehr Daten.")
+            Text("With every question the current image goes to Claude. Higher quality helps with reading text but uses more data.")
         }
     }
 
-    // MARK: - Brille
+    // MARK: - Glasses
 
     private var rayBanSection: some View {
         Section {
@@ -275,41 +275,41 @@ struct SettingsView: View {
                     Label("\(battery) %", systemImage: batteryIcon(battery)).font(.caption)
                 }
             }
-            LabeledContent("Registrierung", value: rayBanManager.registrationLabel)
-            LabeledContent("Mikrofon & Stimme", value: AudioSessionManager.shared.currentRouteLabel)
+            LabeledContent("Registration", value: rayBanManager.registrationLabel)
+            LabeledContent("Microphone & voice", value: AudioSessionManager.shared.currentRouteLabel)
             if let open = rayBanManager.hingesOpen {
-                LabeledContent("Bügel", value: open ? "offen" : "geschlossen")
+                LabeledContent("Temples", value: open ? "open" : "closed")
             }
             if let hint = rayBanManager.updateHint {
                 Label(hint, systemImage: "arrow.down.circle").font(.caption).foregroundStyle(Color.hudWarn)
             }
-            Toggle("Gesten (experimentell)", isOn: $viewModel.config.glassesGestures)
+            Toggle("Gestures (experimental)", isOn: $viewModel.config.glassesGestures)
             if viewModel.config.glassesGestures, rayBanManager.isRegistered {
-                LabeledContent("Gesten", value: rayBanManager.gesturesActive ? "aktiv" : "nicht aktiv")
+                LabeledContent("Gestures", value: rayBanManager.gesturesActive ? "active" : "not active")
                 if let hint = rayBanManager.gestureHint {
                     Label(hint, systemImage: "hand.tap").font(.caption).foregroundStyle(Color.hudWarn)
                 }
             }
             if rayBanManager.isRegistered {
-                Button("Brille abmelden", role: .destructive) {
+                Button("Unregister glasses", role: .destructive) {
                     Task { await rayBanManager.unregister() }
                 }
             } else {
                 Button {
                     Task { await viewModel.connectGlasses() }
                 } label: {
-                    Label("Brille über Meta AI verbinden", systemImage: "link.circle.fill")
+                    Label("Connect glasses via Meta AI", systemImage: "link.circle.fill")
                 }
             }
             Button {
                 showRayBanInstructions = true
             } label: {
-                Label("Anleitung Ray-Ban Meta Gen 2", systemImage: "book.closed.fill")
+                Label("Ray-Ban Meta Gen 2 guide", systemImage: "book.closed.fill")
             }
         } header: {
             HUDLabel("Ray-Ban Meta")
         } footer: {
-            Text("Einmalig registrieren: Die Meta-AI-App öffnet sich zur Bestätigung. Danach hat die Brille immer Vorrang – Kamera, Mikrofon und Lautsprecher der Ray-Ban Meta zuerst, das iPhone nur als Ersatz. Die Kamera der Brille geht nur für ein Foto an, wenn du etwas fragst, das ein Bild braucht. Gesten (experimentell, standardmäßig aus, auf echter Brille noch nicht getestet): Doppeltipp aufs Touchpad – Claude hört sofort zu; Capture-Taste kurz drücken – Claude beschreibt, was du siehst. Dafür bleibt die Verbindung zur Brille offen.")
+            Text("Register once: the Meta AI app opens for confirmation. After that the glasses always take priority – camera, microphone and speakers of the Ray-Ban Meta first, the iPhone only as a fallback. The glasses' camera only turns on for a photo when you ask something that needs an image. Gestures (experimental, off by default, not yet tested on real glasses): double-tap the touchpad – Claude listens immediately; short press of the capture button – Claude describes what you see. For this the connection to the glasses stays open.")
         }
     }
 
@@ -323,59 +323,59 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Sprache
+    // MARK: - Language
 
     private var voiceSection: some View {
         Section {
-            Picker("Sprache", selection: $viewModel.config.speechLanguage) {
+            Picker("Language", selection: $viewModel.config.speechLanguage) {
                 ForEach(ClaudeConfig.supportedLanguages, id: \.code) { Text($0.name).tag($0.code) }
             }
             VStack(alignment: .leading) {
-                LabeledContent("Senden nach Sprechpause", value: String(format: "%.1f s", viewModel.config.speechPauseThreshold))
+                LabeledContent("Send after speech pause", value: String(format: "%.1f s", viewModel.config.speechPauseThreshold))
                 Slider(value: $viewModel.config.speechPauseThreshold, in: 0.5...3.0, step: 0.25)
             }
-            Toggle("Weckwort „Hey Claude“ / „Claudi“", isOn: $viewModel.config.wakeWordEnabled)
-            Toggle("Nach Antwort kurz weiter zuhören", isOn: $viewModel.config.autoListen)
-            Toggle("Bei gesperrtem iPhone weiterhören", isOn: $viewModel.config.listenWhenLocked)
-            Toggle("Display anlassen, solange die App offen ist", isOn: $viewModel.config.keepScreenOn)
+            Toggle("Wake word \"Hey Claude\" / \"Claudi\"", isOn: $viewModel.config.wakeWordEnabled)
+            Toggle("Keep listening briefly after the answer", isOn: $viewModel.config.autoListen)
+            Toggle("Keep listening when the iPhone is locked", isOn: $viewModel.config.listenWhenLocked)
+            Toggle("Keep display on while the app is open", isOn: $viewModel.config.keepScreenOn)
 
             if viewModel.config.connectionMode != .channel {
-                LabeledContent("ElevenLabs-Key") {
+                LabeledContent("ElevenLabs key") {
                     SecureField("optional", text: $viewModel.config.elevenLabsAPIKey)
                         .multilineTextAlignment(.trailing)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
                 if !viewModel.config.elevenLabsAPIKey.isEmpty {
-                    Picker("Stimme", selection: $viewModel.config.elevenLabsVoiceId) {
+                    Picker("Voice", selection: $viewModel.config.elevenLabsVoiceId) {
                         ForEach(ElevenLabsVoice.allVoices) { Text("\($0.name) – \($0.description)").tag($0.id) }
                     }
                 }
             }
         } header: {
-            HUDLabel("Sprache & Stimme")
+            HUDLabel("Language & Voice")
         } footer: {
             Text((viewModel.config.wakeWordEnabled
-                  ? "Mit Weckwort hört die App freihändig zu – wie bei Meta AI auch mit gesperrtem iPhone in der Tasche (oben rechts erscheint dann der orange Mikrofon-Punkt). Sag „Hey Claude“ oder „Claudi“ und dann deine Frage. Die Erkennung läuft nur auf dem iPhone. "
+                  ? "With the wake word the app listens hands-free – like Meta AI, even with the iPhone locked in your pocket (the orange microphone dot then appears at the top right). Say \"Hey Claude\" or \"Claudi\" and then your question. Recognition runs only on the iPhone. "
                   : "")
                  + (viewModel.config.connectionMode == .channel
-                 ? "Standard ist die kostenlose iPhone-Stimme. Eine ElevenLabs-Stimme stellst du im PC-Dashboard ein. Tipp: Unter iOS-Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen eine „Premium“-Stimme laden – klingt deutlich natürlicher."
-                 : "Ohne ElevenLabs-Key spricht die kostenlose iPhone-Stimme."))
+                 ? "The default is the free iPhone voice. You set an ElevenLabs voice in the PC dashboard. Tip: under iOS Settings → Accessibility → Spoken Content → Voices, download a \"Premium\" voice – it sounds much more natural."
+                 : "Without an ElevenLabs key the free iPhone voice is used."))
         }
     }
 
-    // MARK: - Über
+    // MARK: - About
 
     private var aboutSection: some View {
         Section {
             LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–")
             if let url = URL(string: "https://github.com/MoinMornhart/RayBanClaude") {
-                Link(destination: url) { Label("Projekt auf GitHub", systemImage: "chevron.left.forwardslash.chevron.right") }
+                Link(destination: url) { Label("Project on GitHub", systemImage: "chevron.left.forwardslash.chevron.right") }
             }
         } header: {
-            HUDLabel("Über RayBan Claude")
+            HUDLabel("About RayBan Claude")
         } footer: {
-            Text("Open Source (MIT), Fork von visionclaude. Inoffizielles Projekt – nicht verbunden mit Meta, Ray-Ban/EssilorLuxottica oder Anthropic.")
+            Text("Open source (MIT), fork of visionclaude. Unofficial project – not affiliated with Meta, Ray-Ban/EssilorLuxottica or Anthropic.")
         }
     }
 
@@ -385,7 +385,7 @@ struct SettingsView: View {
         Task {
             do {
                 try await viewModel.bridge.checkAuthorized()
-                testResult = (true, "OK – Token gültig")
+                testResult = (true, "OK – token valid")
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             } catch {
                 testResult = (false, error.localizedDescription)
@@ -396,7 +396,7 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Eigener Modus
+// MARK: - Custom mode
 
 struct AddCustomModeView: View {
     @ObservedObject var modeManager: ModeManager
@@ -424,9 +424,9 @@ struct AddCustomModeView: View {
             Form {
                 Group {
                     Section(hud: "Name") {
-                        TextField("z. B. Koch, Gärtner, Nachhilfe", text: $name)
+                        TextField("e.g. Chef, Gardener, Tutor", text: $name)
                     }
-                    Section(hud: "Symbol") {
+                    Section(hud: "Icon") {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 8) {
                             ForEach(iconOptions, id: \.self) { icon in
                                 let isSelected = selectedIcon == icon
@@ -443,7 +443,7 @@ struct AddCustomModeView: View {
                             }
                         }
                     }
-                    Section(hud: "Farbe") {
+                    Section(hud: "Color") {
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 8) {
                             ForEach(colorOptions, id: \.self) { hex in
                                 Button { selectedColor = hex } label: {
@@ -461,25 +461,25 @@ struct AddCustomModeView: View {
                             .frame(minHeight: 110)
                             .scrollContentBackground(.hidden)
                     } header: {
-                        HUDLabel("Anweisung an Claude")
+                        HUDLabel("Instructions for Claude")
                     } footer: {
-                        Text("Beschreibe Fachgebiet und Antwortstil, z. B. „Du bist Koch. Erkenne Zutaten und schlage schnelle Gerichte vor.“")
+                        Text("Describe the field of expertise and answer style, e.g. \"You are a chef. Identify ingredients and suggest quick dishes.\"")
                     }
                     Section {
-                        TextField("Was ist das?, Wie koche ich das?", text: $quickActionsText)
+                        TextField("What is this?, How do I cook this?", text: $quickActionsText)
                     } header: {
-                        HUDLabel("Schnellbefehle (mit Komma getrennt)")
+                        HUDLabel("Quick commands (comma-separated)")
                     }
                 }
                 .hudSection()
             }
             .hudList()
-            .navigationTitle("Neuer Modus")
+            .navigationTitle("New mode")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Sichern") { save() }
+                    Button("Save") { save() }
                         .fontWeight(.semibold)
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty
                                   || systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -504,7 +504,7 @@ struct AddCustomModeView: View {
     }
 }
 
-// MARK: - Anleitung Brille
+// MARK: - Glasses guide
 
 struct RayBanInstructionsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -513,44 +513,44 @@ struct RayBanInstructionsView: View {
         NavigationStack {
             List {
                 Group {
-                    Section(hud: "Voraussetzungen") {
-                        Text("Ray-Ban Meta (Gen 2 oder Gen 1), Oakley Meta oder Meta Ray-Ban Display")
-                        Text("Meta-AI-App (mind. Version 290) – Brille dort gekoppelt")
-                        Text("Aktuelle Brillen-Firmware (mind. V128) – die Meta-AI-App fragt nach Updates")
-                        linkRow("Meta-AI-App laden", "https://apps.apple.com/app/meta-ai/id1662457680")
+                    Section(hud: "Requirements") {
+                        Text("Ray-Ban Meta (Gen 2 or Gen 1), Oakley Meta or Meta Ray-Ban Display")
+                        Text("Meta AI app (version 290 or later) – glasses paired there")
+                        Text("Current glasses firmware (V128 or later) – the Meta AI app prompts for updates")
+                        linkRow("Get the Meta AI app", "https://apps.apple.com/app/meta-ai/id1662457680")
                     }
-                    Section(hud: "1 · Entwicklermodus einschalten") {
-                        step(1, "Meta-AI-App → Einstellungen → deine Brille → Entwicklermodus → an")
-                        step(2, "Brille neu starten: Taste 15 Sekunden halten, dann kurz drücken")
-                        Text("Der Entwicklermodus kann sich nach Firmware-Updates wieder abschalten – dann erneut aktivieren.")
+                    Section(hud: "1 · Turn on developer mode") {
+                        step(1, "Meta AI app → Settings → your glasses → Developer mode → on")
+                        step(2, "Restart the glasses: hold the button for 15 seconds, then press briefly")
+                        Text("Developer mode can switch itself off after firmware updates – if so, turn it on again.")
                             .font(.caption).foregroundStyle(Color.hudMuted)
                     }
-                    Section(hud: "2 · In RayBan Claude verbinden") {
-                        step(3, "Einstellungen → „Brille über Meta AI verbinden“")
-                        step(4, "In der Meta-AI-App „Erlauben“ tippen – du landest wieder hier")
-                        step(5, "Unten rechts auf „Brille“ umschalten und die Kamera-Freigabe bestätigen")
+                    Section(hud: "2 · Connect in RayBan Claude") {
+                        step(3, "Settings → \"Connect glasses via Meta AI\"")
+                        step(4, "In the Meta AI app tap \"Allow\" – you will land back here")
+                        step(5, "Switch to \"Glasses\" at the bottom right and confirm the camera permission")
                     }
-                    Section(hud: "Tipps für Gen 2") {
-                        Text("Bügel aufklappen – bei geschlossenen Bügeln stoppt der Stream (er startet beim Öffnen automatisch neu).")
-                        Text("Ein Tipp auf das Touchpad pausiert die Verbindung, ein weiterer setzt sie fort.")
-                        Text("Mit eingeschalteten Gesten (Einstellungen → Ray-Ban Meta): Doppeltipp auf das Touchpad – Claude hört sofort zu, ohne „Hey Claude“. Capture-Taste kurz drücken – Foto, Claude sagt dir, was du siehst.")
-                        Text("Solange die Gesten an sind, beendet Tippen und Halten die Verbindung (die App verbindet nach ein paar Sekunden neu), und Wischen am Bügel ändert die Lautstärke evtl. nicht – dann am iPhone regeln oder die Gesten ausschalten.")
-                        Text("Claude kann selbst ein scharfes Foto mit der Brille aufnehmen, z. B. zum Lesen von Text.")
-                        Text("Unter 10 % Akku verweigert die Brille den Kamerastream.")
+                    Section(hud: "Tips for Gen 2") {
+                        Text("Unfold the temples – the stream stops when they are closed (it restarts automatically when you open them).")
+                        Text("One tap on the touchpad pauses the connection, another resumes it.")
+                        Text("With gestures turned on (Settings → Ray-Ban Meta): double-tap the touchpad – Claude listens immediately, no \"Hey Claude\" needed. Short press of the capture button – photo, and Claude tells you what you see.")
+                        Text("While gestures are on, tap-and-hold ends the connection (the app reconnects after a few seconds), and swiping on the temple may not change the volume – adjust it on the iPhone or turn the gestures off.")
+                        Text("Claude can take a sharp photo with the glasses on its own, e.g. to read text.")
+                        Text("Below 10 % battery the glasses refuse the camera stream.")
                     }
-                    Section(hud: "Probleme?") {
-                        Text("Keine Brille gefunden: eingeschaltet, Bügel offen, in der Meta-AI-App verbunden?")
-                        Text("„Gerät nicht verfügbar“: Brille aus- und einschalten, dann erneut verbinden.")
-                        linkRow("Meta Wearables Doku", "https://wearables.developer.meta.com/docs/develop/")
+                    Section(hud: "Problems?") {
+                        Text("No glasses found: switched on, temples open, connected in the Meta AI app?")
+                        Text("\"Device not available\": switch the glasses off and on, then connect again.")
+                        linkRow("Meta Wearables docs", "https://wearables.developer.meta.com/docs/develop/")
                     }
                 }
                 .hudSection()
             }
             .hudList()
-            .navigationTitle("Ray-Ban Meta einrichten")
+            .navigationTitle("Set up Ray-Ban Meta")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) { Button("Fertig") { dismiss() }.fontWeight(.semibold) }
+                ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() }.fontWeight(.semibold) }
             }
         }
     }

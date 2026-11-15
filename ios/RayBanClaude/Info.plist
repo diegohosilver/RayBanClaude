@@ -23,30 +23,30 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>RayBan Claude braucht die Kamera, damit Claude sehen kann, was du ihm zeigst, und um QR-Codes zu erkennen.</string>
+	<string>RayBan Claude needs the camera so Claude can see what you show it, and to detect QR codes.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>RayBan Claude braucht das Mikrofon, damit du per Sprache mit Claude reden kannst.</string>
+	<string>RayBan Claude needs the microphone so you can talk to Claude by voice.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>RayBan Claude wandelt deine Sprache auf dem iPhone in Text um.</string>
+	<string>RayBan Claude converts your speech to text on the iPhone.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Für „Erinnere mich morgen um 9 an …“ legt RayBan Claude Einträge in deiner Erinnerungen-App an.</string>
+	<string>For “Remind me tomorrow at 9 to …”, RayBan Claude creates entries in your Reminders app.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>Für „Erinnere mich morgen um 9 an …“ legt RayBan Claude Einträge in deiner Erinnerungen-App an.</string>
+	<string>For “Remind me tomorrow at 9 to …”, RayBan Claude creates entries in your Reminders app.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Für „Mach ein Foto“ speichert RayBan Claude das Foto der Brille in deiner Mediathek.</string>
+	<string>For “Take a photo”, RayBan Claude saves the glasses' photo to your photo library.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Für „Wo bin ich?“ und „Merk dir, wo ich geparkt habe“ fragt RayBan Claude einmalig den Standort ab – nur auf Zuruf.</string>
+	<string>For “Where am I?” and “Remember where I parked”, RayBan Claude requests your location once – only on demand.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>Damit „Ruf Mama an“ funktioniert, sucht RayBan Claude den Namen in deinen Kontakten – nur auf dem iPhone, Nummern gehen nicht an Claude.</string>
+	<string>For “Call Mom” to work, RayBan Claude looks up the name in your contacts – on the iPhone only; numbers are never sent to Claude.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>RayBan Claude verbindet sich mit deinem PC im lokalen WLAN und mit deiner Ray-Ban Meta.</string>
+	<string>RayBan Claude connects to your PC on the local Wi-Fi and to your Ray-Ban Meta.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>
 		<string>_bonjour._tcp</string>
 	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>RayBan Claude nutzt Bluetooth für die Verbindung zur Ray-Ban Meta (Kamera, Mikrofon, Lautsprecher).</string>
+	<string>RayBan Claude uses Bluetooth to connect to the Ray-Ban Meta (camera, microphone, speaker).</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

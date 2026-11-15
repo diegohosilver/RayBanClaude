@@ -5,25 +5,25 @@ import MWDATCore
 import MWDATCamera
 import MWDATInputs
 
-/// Gesten der Brille, die die App versteht (übersetzt aus `MWDATInputs.InputEvent`)
+/// Glasses gestures the app understands (translated from `MWDATInputs.InputEvent`)
 enum GlassesGesture: Equatable {
-    /// Doppeltipp auf das Touchpad (bzw. Aktionstaste): sofort zuhören, ohne Weckwort
+    /// Double tap on the touchpad (or action button): listen immediately, without a wake word
     case listen
-    /// Capture-Taste kurz gedrückt: Foto machen und „Was siehst du?“ fragen
+    /// Capture button pressed briefly: take a photo and ask “What do you see?”
     case photo
-    /// Zurück-Geste: Antwort bzw. Zuhören abbrechen (liefern echte Brillen laut Meta noch nicht)
+    /// Back gesture: cancel the answer or listening (real glasses don't deliver it yet, according to Meta)
     case cancel
 }
 
-/// Kamera und Gesten der Ray-Ban Meta (Gen 1 und Gen 2) über das Meta Wearables DAT SDK 1.x.
+/// Camera and gestures of the Ray-Ban Meta (Gen 1 and Gen 2) via the Meta Wearables DAT SDK 1.x.
 ///
-/// Wie bei Meta AI filmt die Brille NICHT dauernd: Sie ist nur „bereit“. Die Geräte-Sitzung bleibt
-/// offen, damit Touchpad und Capture-Taste ankommen (experimentelles Modul `MWDATInputs`) – die
-/// Kamera aber startet nur für ein Foto (Kamera → Stream → Foto) und geht nach einer kurzen
-/// Nachlaufzeit wieder aus. Sind die Gesten ausgeschaltet, geht die Sitzung mit der Kamera aus.
+/// As with Meta AI, the glasses do NOT film constantly: they are only “ready”. The device session stays
+/// open so that touchpad and capture button events arrive (experimental module `MWDATInputs`) – the
+/// camera, however, only starts for a photo (camera → stream → photo) and switches off again after a short
+/// grace period. If gestures are turned off, the session ends together with the camera.
 ///
-/// Ablauf laut SDK: Registrierung → Kamera-Freigabe → DeviceSession starten →
-/// auf `.started` warten → Inputs anhängen · pro Foto: Kamera hinzufügen → Audio (HFP) → Stream.
+/// Flow according to the SDK: registration → camera permission → start DeviceSession →
+/// wait for `.started` → attach inputs · per photo: add camera → audio (HFP) → stream.
 @MainActor
 final class RayBanManager: NSObject, ObservableObject, FrameSource {
 
@@ -36,26 +36,26 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     @Published private(set) var frameCount: Int = 0
     let sourceType: FrameSourceType = .rayBan
 
-    // MARK: Gerätestatus
+    // MARK: Device status
 
-    @Published private(set) var glassesName: String = "Nicht verbunden"
+    @Published private(set) var glassesName: String = "Not connected"
     @Published private(set) var deviceModel: String?
     @Published private(set) var batteryLevel: Int?
     @Published private(set) var hingesOpen: Bool?
     @Published private(set) var hasActiveDevice: Bool = false
     @Published private(set) var isRegistered: Bool = false
-    @Published private(set) var registrationLabel: String = "Nicht registriert"
+    @Published private(set) var registrationLabel: String = "Not registered"
     @Published private(set) var updateHint: String?
 
-    // MARK: Gesten
+    // MARK: Gestures
 
-    /// Touchpad und Capture-Taste kommen gerade bei der App an
+    /// Touchpad and capture button events are currently reaching the app
     @Published private(set) var gesturesActive: Bool = false
-    /// Warum die Gesten nicht gehen (z. B. nicht freigeschaltet)
+    /// Why gestures don't work (e.g. not enabled)
     @Published private(set) var gestureHint: String?
-    /// Erkannte Geste – die Ablaufsteuerung entscheidet, was passiert
+    /// Recognized gesture – the flow controller decides what happens
     var onGesture: ((GlassesGesture) -> Void)?
-    /// Gesten an: Sitzung bleibt offen. Aus (Standard): Sitzung nur fürs Foto (wie vor den Gesten).
+    /// Gestures on: session stays open. Off (default): session only for the photo (as before gestures).
     var gesturesEnabled = false {
         didSet {
             guard gesturesEnabled != oldValue else { return }
@@ -63,7 +63,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         }
     }
 
-    // MARK: SDK-Objekte
+    // MARK: SDK objects
 
     private var deviceSession: DeviceSession?
     private var camera: Camera?
@@ -73,9 +73,9 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     private let inputsTokens = ListenerTokenBag()
     private let deviceTokens = ListenerTokenBag()
     private var registrationTask: Task<Void, Never>?
-    /// Kamera-Start für ein Foto
+    /// Camera start for a photo
     private var startTask: Task<Void, Never>?
-    /// Aufbau der Sitzung – gleichzeitige Aufrufer warten auf denselben Aufbau
+    /// Session setup – concurrent callers wait for the same setup
     private var sessionTask: Task<DeviceSession?, Never>?
     private var sessionAttempt = 0
     private var sessionRetryTask: Task<Void, Never>?
@@ -83,80 +83,80 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     private var inputsAttachTask: Task<Void, Never>?
     private nonisolated let gate = FrameGate()
     private var photoWaiter: CheckedContinuation<Data?, Never>?
-    /// Brille ist als Bildquelle gewählt und bereit (Kamera startet nur bei Bedarf)
+    /// Glasses are selected as the image source and ready (camera only starts on demand)
     private var isArmed = false
-    /// Vor dem Anhalten der App freigegeben – keine Sitzung von selbst neu öffnen
+    /// Released before the app is suspended – don't reopen a session on its own
     private var isSuspended = false
     private var idleStopTask: Task<Void, Never>?
-    /// Audio (HFP) wurde schon einmal eingerichtet und hatte Zeit, sich zu setzen
+    /// Audio (HFP) has been set up once and had time to settle
     private var audioSettled = false
 
-    // MARK: Zustand von Sitzung und Gesten
+    // MARK: Session and gesture state
 
     private var sessionStartedAt: Date = .distantPast
-    /// Einmal auf das Touchpad getippt → Sitzung pausiert (System-Geste)
+    /// Tapped the touchpad once → session paused (system gesture)
     private var sessionPaused = false
-    /// Auf dieser Sitzung lief schon eine Kamera – ein Neustart kann laut Meta-Issue #260 scheitern
+    /// A camera has already run on this session – a restart can fail according to Meta issue #260
     private var sessionHadCamera = false
-    /// Fehlgeschlagene Wiederaufbauten der Sitzung in Folge
+    /// Consecutive failed session rebuilds
     private var sessionFailures = 0
-    /// Inputs haben den Ausgangszustand `.inactive` schon einmal verlassen
+    /// Inputs have already left the initial `.inactive` state once
     private var inputsLeftInactive = false
     private var inputsRetries = 0
-    /// Gesten für diese App/Brille nicht verfügbar – nicht weiter versuchen
+    /// Gestures not available for this app/glasses – stop trying
     private var inputsBlocked = false
 
-    /// Nur für Fotos: `hvc1` liefert laut Meta auch bei gesperrtem iPhone (Hintergrund) – `raw` nur im Vordergrund.
-    /// Mittlere Auflösung schont Bluetooth und Akku; die Fotos selbst kommen trotzdem in 1440×1080.
+    /// For photos only: according to Meta, `hvc1` also delivers with the iPhone locked (background) – `raw` only in the foreground.
+    /// Medium resolution spares Bluetooth and battery; the photos themselves still arrive at 1440×1080.
     private let streamConfig = StreamConfiguration(videoCodec: .hvc1, resolution: .medium, frameRate: 15)
-    /// Wie im Meta-Beispiel BirdSpotter: Touchpad und beide Tasten. Nur die Capture-Taste allein
-    /// meldete dort „aktiv“, lieferte aber nichts. „Zurück“ gehört der App – sonst beendet es die Sitzung.
+    /// As in Meta's BirdSpotter example: touchpad and both buttons. The capture button alone
+    /// reported “active” there but delivered nothing. “Back” belongs to the app – otherwise it ends the session.
     private let inputsConfig = InputsConfiguration(sources: [.captouch, .captureButton, .actionButton], consumeBack: true)
-    /// Meta: zwischen zwei Sitzungen mindestens 2 s Pause, sonst kann die Brille hängen bleiben
+    /// Meta: at least a 2 s pause between two sessions, otherwise the glasses can hang
     private let sessionGap: TimeInterval = 2
     private var lastTeardown: Date = .distantPast
     private let sessionStartTimeout: TimeInterval = 20
-    private let hfpSettleDelay: UInt64 = 2_000_000_000       // 2 s laut Meta-Doku
+    private let hfpSettleDelay: UInt64 = 2_000_000_000       // 2 s according to the Meta docs
     private let photoTimeout: UInt64 = 12_000_000_000         // 12 s
-    /// So lange bleibt die Kamera nach einem Foto an (für schnelle Rückfragen), dann geht sie aus
+    /// How long the camera stays on after a photo (for quick follow-up questions), then it switches off
     private let cameraKeepAlive: UInt64 = 15_000_000_000      // 15 s
-    /// Maximal so lange auf einen laufenden Stream warten
+    /// Wait at most this long for a running stream
     private let streamReadyTimeout: TimeInterval = 15
-    /// Kamera-Neustart auf der laufenden Sitzung – danach Rückfall: Sitzung neu aufbauen
+    /// Camera restart on the running session – then fall back: rebuild the session
     private let cameraRestartTimeout: TimeInterval = 8
-    /// Belichtung nach dem Kamerastart kurz einpendeln lassen
-    private let exposureSettleDelay: UInt64 = 400_000_000      // 0,4 s
-    private let pollInterval: UInt64 = 100_000_000             // 0,1 s
-    /// Inputs erst anhängen, wenn die Brille wirklich verbunden ist (max. so lange warten)
+    /// Let the exposure settle briefly after the camera starts
+    private let exposureSettleDelay: UInt64 = 400_000_000      // 0.4 s
+    private let pollInterval: UInt64 = 100_000_000             // 0.1 s
+    /// Only attach inputs once the glasses are really connected (wait at most this long)
     private let deviceArrivalTimeout: TimeInterval = 10
-    /// Pause vor dem (erneuten) Anhängen der Inputs – Wert aus dem Meta-Beispiel BirdSpotter
-    private let inputsAttachDelay: UInt64 = 750_000_000        // 0,75 s
+    /// Pause before (re)attaching the inputs – value from Meta's BirdSpotter example
+    private let inputsAttachDelay: UInt64 = 750_000_000        // 0.75 s
     private let maxInputsRetries = 5
-    /// Abgebrochene Sitzung (Tippen und Halten, Bügel zu) nach dieser Pause wieder aufbauen
+    /// Rebuild an aborted session (tap and hold, temple closed) after this pause
     private let sessionRetryDelay: UInt64 = 5_000_000_000      // 5 s
     private let maxSessionRetries = 3
-    /// Lief eine Sitzung so lange, zählen frühere Fehlversuche nicht mehr
+    /// If a session ran this long, earlier failed attempts no longer count
     private let stableSessionDuration: TimeInterval = 60
 
-    private static let pausedMessage = "Pausiert – zum Fortsetzen auf das Touchpad der Brille tippen"
+    private static let pausedMessage = "Paused – tap the glasses' touchpad to resume"
 
     private var wearables: any WearablesInterface { Wearables.shared }
 
-    /// Sitzung bleibt nach dem Foto offen (für die Gesten) – sonst geht sie mit der Kamera aus
+    /// Session stays open after the photo (for gestures) – otherwise it ends with the camera
     private var keepsSession: Bool { gesturesEnabled && deviceSession != nil }
 
-    /// Status ohne laufende Kamera
+    /// Status without a running camera
     private var restingStatus: FrameSourceStatus { sessionPaused ? .error(Self.pausedMessage) : .standby }
 
     func configure(frameInterval: TimeInterval = 1.0, jpegQuality: CGFloat = 0.85) {
         gate.update(frameInterval: frameInterval, jpegQuality: jpegQuality)
     }
 
-    // MARK: - Registrierung (einmalig, über die Meta-AI-App)
+    // MARK: - Registration (one-time, via the Meta AI app)
 
     func startMonitoringRegistration() {
         guard WearablesSupport.isConfigured else {
-            registrationLabel = "Meta-SDK nicht verfügbar"
+            registrationLabel = "Meta SDK not available"
             return
         }
         updateRegistration(wearables.registrationState)
@@ -173,19 +173,19 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         switch state {
         case .registered:
             isRegistered = true
-            registrationLabel = "Registriert"
+            registrationLabel = "Registered"
         case .registering:
             isRegistered = false
-            registrationLabel = "Registrierung läuft …"
+            registrationLabel = "Registering …"
         case .available:
             isRegistered = false
-            registrationLabel = "Nicht registriert"
+            registrationLabel = "Not registered"
         case .unavailable:
             isRegistered = false
-            registrationLabel = "Meta-AI-App fehlt"
+            registrationLabel = "Meta AI app missing"
         @unknown default:
             isRegistered = false
-            registrationLabel = "Unbekannt"
+            registrationLabel = "Unknown"
         }
     }
 
@@ -195,7 +195,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
             connectionStatus = .connecting
             try await wearables.startRegistration()
         } catch {
-            connectionStatus = .error("Registrierung fehlgeschlagen: \(error.localizedDescription)")
+            connectionStatus = .error("Registration failed: \(error.localizedDescription)")
         }
     }
 
@@ -204,18 +204,18 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         do {
             try await wearables.startUnregistration()
         } catch {
-            connectionStatus = .error("Abmelden fehlgeschlagen: \(error.localizedDescription)")
+            connectionStatus = .error("Unregistering failed: \(error.localizedDescription)")
         }
     }
 
     // MARK: - FrameSource
 
-    /// Brille als Bildquelle wählen: prüft Registrierung und Kamera-Freigabe und öffnet (mit Gesten)
-    /// die Sitzung – filmt aber noch nicht.
+    /// Select the glasses as the image source: checks registration and camera permission and opens (with gestures)
+    /// the session – but doesn't film yet.
     func start() throws {
         isArmed = true
         isSuspended = false
-        guard startTask == nil, sessionTask == nil, deviceSession == nil else { return } // läuft schon / startet gerade
+        guard startTask == nil, sessionTask == nil, deviceSession == nil else { return } // already running / starting
         Task { [weak self] in
             guard let self, await self.ensureAccess(), self.isArmed, self.deviceSession == nil else { return }
             self.connectionStatus = .standby
@@ -229,16 +229,16 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         teardown(status: .disconnected)
     }
 
-    /// Nur ein frisches Bild aus einer gerade laufenden Aufnahme – nie ein altes
+    /// Only a fresh frame from a currently running capture – never an old one
     func consumeFrame() -> Data? {
         isRunning ? latestFrame : nil
     }
 
-    /// Kamera schon mal starten (z. B. während der Nutzer noch „Was steht auf …“ sagt)
+    /// Start the camera early (e.g. while the user is still saying “What does it say on …”)
     func prepareCapture() {
         guard isArmed else { return }
         scheduleIdleStop()
-        // Läuft schon, startet gerade (Stream noch nicht „streaming“) oder Sitzung wird aufgebaut
+        // Already running, starting (stream not yet “streaming”) or session being set up
         guard camera == nil, startTask == nil else { return }
         startTask = Task { [weak self] in
             await self?.startStreaming()
@@ -246,8 +246,8 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         }
     }
 
-    /// Foto direkt auf der Brille auslösen (schärfer als ein Videobild). Startet die Kamera bei
-    /// Bedarf und schaltet sie nach einer kurzen Nachlaufzeit wieder ab.
+    /// Trigger a photo directly on the glasses (sharper than a video frame). Starts the camera on
+    /// demand and switches it off again after a short grace period.
     func capturePhoto() async -> Data? {
         guard isArmed else { return nil }
         if !isRunning {
@@ -263,15 +263,15 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         return photo
     }
 
-    /// Kamera starten und auf den Stream warten. Startet sie auf der weiterlaufenden Sitzung nicht neu
-    /// (Meta-Issue #260), wird einmal die ganze Sitzung neu aufgebaut (mit mind. 2 s Pause).
+    /// Start the camera and wait for the stream. If it doesn't restart on the continuing session
+    /// (Meta issue #260), the whole session is rebuilt once (with at least a 2 s pause).
     private func bringUpCamera() async -> Bool {
         let reused = sessionHadCamera && deviceSession != nil
         prepareCapture()
-        idleStopTask?.cancel() // während des Starts nicht abschalten
+        idleStopTask?.cancel() // don't switch off during startup
         if await waitForStreaming(timeout: reused ? cameraRestartTimeout : streamReadyTimeout) { return true }
         guard reused, isArmed, !isRunning, !sessionPaused else { return false }
-        print("[Brille] Kamera startet auf der laufenden Sitzung nicht neu – Sitzung wird neu aufgebaut")
+        print("[Glasses] Camera does not restart on the running session – rebuilding session")
         startTask?.cancel()
         startTask = nil
         teardown(status: .connecting)
@@ -284,7 +284,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if isRunning { return true }
-            // Start ist durch, aber ohne Kamera oder mit Fehler → nicht weiter warten
+            // Startup is done, but without a camera or with an error → stop waiting
             if startTask == nil {
                 if camera == nil { return false }
                 if case .error = connectionStatus { return false }
@@ -294,7 +294,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         return isRunning
     }
 
-    /// Nach der Nachlaufzeit ohne weiteres Foto: Kamera (und ohne Gesten auch die Sitzung) freigeben
+    /// After the grace period without another photo: release the camera (and the session too, without gestures)
     private func scheduleIdleStop() {
         idleStopTask?.cancel()
         idleStopTask = Task { [weak self, cameraKeepAlive] in
@@ -332,35 +332,35 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         photoWaiter = nil
     }
 
-    // MARK: - Ablauf
+    // MARK: - Flow
 
-    /// SDK bereit, Brille registriert, Kamera freigegeben? (Freigabe öffnet ggf. einmalig die Meta-AI-App)
+    /// SDK ready, glasses registered, camera permission granted? (Granting may open the Meta AI app once)
     private func ensureAccess() async -> Bool {
         guard WearablesSupport.isConfigured else {
-            connectionStatus = .error("Meta-SDK nicht verfügbar – App neu starten")
+            connectionStatus = .error("Meta SDK not available – restart the app")
             return false
         }
         guard wearables.registrationState == .registered else {
-            connectionStatus = .error("Brille erst verbinden: Einstellungen → „Brille über Meta AI verbinden“")
+            connectionStatus = .error("Connect the glasses first: Settings → “Connect glasses via Meta AI”")
             await register()
             return false
         }
         do {
             if try await wearables.checkPermissionStatus(.camera) != .granted {
                 guard try await wearables.requestPermission(.camera) == .granted else {
-                    connectionStatus = .error("Kamera-Freigabe abgelehnt – in der Meta-AI-App erlauben")
+                    connectionStatus = .error("Camera permission denied – allow it in the Meta AI app")
                     return false
                 }
             }
         } catch {
-            connectionStatus = .error("Kamera-Freigabe nicht möglich: \(error.localizedDescription)")
+            connectionStatus = .error("Camera permission not possible: \(error.localizedDescription)")
             return false
         }
         return true
     }
 
-    /// Gestartete Sitzung holen – baut sie bei Bedarf auf. Gleichzeitige Aufrufer (Foto und Gesten)
-    /// warten auf denselben Aufbau, damit nie zwei Sitzungen entstehen.
+    /// Get the started session – builds it if needed. Concurrent callers (photo and gestures)
+    /// wait for the same setup so that two sessions never arise.
     private func startedSession() async -> DeviceSession? {
         if let session = deviceSession, sessionTask == nil {
             switch session.state {
@@ -370,7 +370,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
                 connectionStatus = .error(Self.pausedMessage)
                 return nil
             default:
-                // Hängengeblieben oder schon beendet → sauber abbauen und neu aufbauen
+                // Stuck or already ended → tear down cleanly and rebuild
                 teardown(status: .connecting)
             }
         }
@@ -386,11 +386,11 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         return await task.value
     }
 
-    /// Sitzung erstellen, starten und (mit Gesten) die Inputs anhängen
+    /// Create and start the session and (with gestures) attach the inputs
     private func openSession() async -> DeviceSession? {
         connectionStatus = .connecting
 
-        // 1. Registrierung und Kamera-Freigabe
+        // 1. Registration and camera permission
         guard await ensureAccess(), !Task.isCancelled else { return nil }
         let sinceLast = Date().timeIntervalSince(lastTeardown)
         if sinceLast < sessionGap {
@@ -398,7 +398,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         }
         guard !Task.isCancelled, isArmed else { return nil }
 
-        // 2. Geräte-Sitzung
+        // 2. Device session
         let session: DeviceSession
         do {
             session = try wearables.createSession(deviceSelector: AutoDeviceSelector(wearables: wearables))
@@ -407,7 +407,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
             return nil
         }
         deviceSession = session
-        // Vor start() abonnieren – Publisher wiederholen nichts
+        // Subscribe before start() – publishers don't replay anything
         session.statePublisher.listen { [weak self] state in
             Task { @MainActor [weak self] in self?.handle(sessionState: state, of: session) }
         }.store(in: sessionTokens)
@@ -420,14 +420,14 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         }
         guard await waitUntilStarted(session), deviceSession === session else {
             if deviceSession === session {
-                teardown(status: .error("Brille antwortet nicht. Eingeschaltet, Bügel offen, in Bluetooth-Reichweite?"))
+                teardown(status: .error("Glasses not responding. Switched on, temples open, within Bluetooth range?"))
             }
             return nil
         }
         sessionStartedAt = Date()
         observeDevice(session.device)
 
-        // 3. Gesten – unabhängig vom Foto, das ggf. schon wartet
+        // 3. Gestures – independent of the photo, which may already be waiting
         if gesturesEnabled { scheduleInputsAttach(to: session, waitForDevice: true) }
         return session
     }
@@ -447,14 +447,14 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     private func startStreaming() async {
         connectionStatus = .connecting
 
-        // 1.–2. Registrierung, Freigabe und Sitzung (läuft für die Gesten meist schon)
+        // 1.–2. Registration, permission and session (usually already running for gestures)
         guard let session = await startedSession(), !Task.isCancelled, camera == nil else { return }
 
-        // 3. Kamera + Stream – eine gestoppte Kamera ist ungültig, daher für jedes Foto neu hinzufügen
+        // 3. Camera + stream – a stopped camera is invalid, so add it anew for every photo
         let cam: Camera
         do {
             guard let created = try session.addCamera(config: streamConfig) else {
-                failCamera("Kamera der Brille nicht verfügbar")
+                failCamera("Glasses camera not available")
                 return
             }
             cam = created
@@ -466,7 +466,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         sessionHadCamera = true
         subscribe(to: cam)
 
-        // 4. Audio über die Brille (HFP) VOR dem Streamstart einrichten und beim ersten Mal kurz setzen lassen
+        // 4. Set up audio over the glasses (HFP) BEFORE starting the stream and let it settle briefly the first time
         try? AudioSessionManager.shared.configureForVoiceChat()
         if !audioSettled {
             try? await Task.sleep(nanoseconds: hfpSettleDelay)
@@ -478,7 +478,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
 
     private func subscribe(to cam: Camera) {
         let stream = cam.stream
-        // Alte Rückmeldungen einer schon gestoppten Kamera ignorieren – die Kamera kommt und geht
+        // Ignore old callbacks from an already stopped camera – the camera comes and goes
         stream.statePublisher.listen { [weak self] state in
             Task { @MainActor [weak self] in
                 guard let self, self.camera === cam else { return }
@@ -487,7 +487,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         }.store(in: streamTokens)
 
         stream.videoFramePublisher.listen { [weak self, gate] frame in
-            // Umwandlung abseits des Main-Threads, nur das Ergebnis geht an die UI
+            // Conversion off the main thread, only the result goes to the UI
             guard let image = frame.makeUIImage() else { return }
             let jpeg = gate.jpegIfDue(image)
             Task { @MainActor [weak self] in
@@ -520,14 +520,14 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
             isRunning = true
             connectionStatus = .connected
         case .paused:
-            // Einmal auf das Touchpad getippt → Stream pausiert; nicht neu starten
+            // Tapped the touchpad once → stream paused; don't restart
             connectionStatus = .error(Self.pausedMessage)
         case .waitingForDevice, .starting, .stopping:
             connectionStatus = .connecting
         case .stopped:
             isRunning = false
             if isArmed {
-                // Von außen beendet (z. B. Bügel zu) → Kamera abbauen, das nächste Foto startet sie neu
+                // Ended externally (e.g. temple closed) → tear down the camera, the next photo restarts it
                 let status = connectionStatus.isReady || connectionStatus == .connecting ? restingStatus : connectionStatus
                 if keepsSession { stopCamera(status: status) } else { teardown(status: status) }
             } else if connectionStatus == .connecting || connectionStatus == .connected {
@@ -541,14 +541,14 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     private func handle(error: StreamError) {
         if error == .photoCaptureFailed {
             resolvePhoto(nil)
-            return // Stream läuft weiter
+            return // Stream keeps running
         }
         let message = describe(error)
-        print("[Brille] Fehler: \(message)")
+        print("[Glasses] Error: \(message)")
         failCamera(message)
     }
 
-    /// Kamera ist gescheitert: nur sie abbauen (Sitzung bleibt für die Gesten) – ohne Gesten alles
+    /// Camera failed: tear down only it (session stays for gestures) – without gestures, everything
     private func failCamera(_ message: String) {
         if keepsSession {
             stopCamera(status: .error(message))
@@ -557,8 +557,8 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         }
     }
 
-    /// Kamera und Sitzung sofort freigeben (z. B. bevor iOS die App anhält), bleibt aber bereit.
-    /// Zurück im Vordergrund holt `restoreGestureSession()` die Gesten wieder.
+    /// Release camera and session immediately (e.g. before iOS suspends the app), but stay ready.
+    /// Back in the foreground, `restoreGestureSession()` brings the gestures back.
     func releaseCamera() {
         isSuspended = true
         cancelPendingWork()
@@ -566,7 +566,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         teardown(status: isArmed ? .standby : .disconnected)
     }
 
-    /// Gesten-Sitzung wieder aufbauen (z. B. wenn die App in den Vordergrund kommt)
+    /// Rebuild the gesture session (e.g. when the app comes to the foreground)
     func restoreGestureSession() {
         isSuspended = false
         ensureGestureSession(resetRetries: true)
@@ -584,7 +584,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         sessionAttempt += 1
     }
 
-    /// Nur die Kamera freigeben – die Sitzung (und damit die Gesten) bleibt offen
+    /// Release only the camera – the session (and with it the gestures) stays open
     private func stopCamera(status: FrameSourceStatus) {
         resolvePhoto(nil)
         streamTokens.clear()
@@ -596,7 +596,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         connectionStatus = status
     }
 
-    /// Alles abbauen, von oben nach unten: Inputs → Kamera → Sitzung
+    /// Tear everything down, top to bottom: inputs → camera → session
     private func teardown(status: FrameSourceStatus) {
         if deviceSession != nil { lastTeardown = Date() }
         inputsAttachTask?.cancel()
@@ -612,9 +612,9 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         sessionPaused = false
     }
 
-    // MARK: - Dauersitzung für die Gesten
+    // MARK: - Persistent session for gestures
 
-    /// Sitzung für die Gesten aufbauen, falls keine läuft (idempotent)
+    /// Set up the session for gestures if none is running (idempotent)
     private func ensureGestureSession(resetRetries: Bool = false) {
         if resetRetries { sessionFailures = 0 }
         guard isArmed, !isSuspended, gesturesEnabled, deviceSession == nil, sessionTask == nil, startTask == nil else { return }
@@ -628,12 +628,12 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         }
     }
 
-    /// Abgebrochene oder gescheiterte Sitzung nach einer Pause wieder aufbauen – begrenzt, damit die
-    /// App nicht endlos mit einer anderen App (z. B. Meta AI) um die Brille ringt
+    /// Rebuild an aborted or failed session after a pause – limited so the
+    /// app doesn't wrestle endlessly with another app (e.g. Meta AI) over the glasses
     private func scheduleSessionRetry() {
-        // Bügel zu: nicht probieren – beim Aufklappen baut `apply` die Sitzung neu auf
+        // Temples closed: don't try – when they open, `apply` rebuilds the session
         guard isArmed, !isSuspended, gesturesEnabled, hingesOpen != false, sessionFailures < maxSessionRetries else { return }
-        // Schon geplant (z. B. Startfehler meldet sich über den Status und den Rückgabewert) → nur einmal zählen
+        // Already scheduled (e.g. a startup error reports via the status and the return value) → count only once
         guard sessionRetryTask == nil else { return }
         sessionFailures += 1
         sessionRetryTask = Task { [weak self, sessionRetryDelay] in
@@ -645,7 +645,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     }
 
     private func handle(sessionState state: DeviceSessionState, of session: DeviceSession) {
-        guard deviceSession === session else { return } // alte Sitzung
+        guard deviceSession === session else { return } // old session
         switch state {
         case .paused:
             sessionPaused = true
@@ -656,7 +656,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
             connectionStatus = isRunning ? .connected : .standby
             if gesturesEnabled, inputs == nil { scheduleInputsAttach(to: session, waitForDevice: true) }
         case .stopped:
-            // Von außen beendet: Tippen und Halten am Touchpad, Bügel zu, Brille aus
+            // Ended externally: tap and hold on the touchpad, temples closed, glasses off
             sessionEnded()
         case .idle, .starting, .stopping:
             break
@@ -688,16 +688,16 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         sessionRetryTask = nil
         detachInputs(from: deviceSession)
         gestureHint = nil
-        // Ohne Gesten wie früher: Sitzung nur, solange die Kamera läuft
+        // Without gestures as before: session only while the camera runs
         if camera == nil, startTask == nil, deviceSession != nil {
             teardown(status: isArmed ? .standby : .disconnected)
         }
     }
 
-    // MARK: - Gesten (MWDATInputs, experimentell)
+    // MARK: - Gestures (MWDATInputs, experimental)
 
-    /// Inputs (erneut) anhängen – nach einer kurzen Pause, wenn die Brille wirklich da ist und gerade
-    /// kein Foto übertragen wird. Zu früh angehängt scheitern sie einmal still (`deviceDisconnected`).
+    /// Attach inputs (again) – after a short pause, when the glasses are really there and no photo
+    /// is being transferred. Attached too early, they fail silently once (`deviceDisconnected`).
     private func scheduleInputsAttach(to session: DeviceSession, waitForDevice: Bool) {
         guard gesturesEnabled, !inputsBlocked, inputsAttachTask == nil else { return }
         inputsAttachTask = Task { [weak self, inputsAttachDelay, pollInterval, deviceArrivalTimeout] in
@@ -708,7 +708,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
                     try? await Task.sleep(nanoseconds: pollInterval)
                 }
             }
-            // Während ein Foto über Bluetooth kommt, nichts anfassen – sonst fällt es gleich wieder aus
+            // Don't touch anything while a photo is coming over Bluetooth – otherwise it drops out again
             while self?.photoWaiter != nil, !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: pollInterval)
             }
@@ -726,18 +726,18 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         do {
             attached = try session.addInputs(configuration: inputsConfig)
         } catch {
-            print("[Brille] Gesten nicht angehängt: \(error.localizedDescription)")
+            print("[Glasses] Gestures not attached: \(error.localizedDescription)")
             retryInputs(on: session)
             return
         }
         guard let attached else {
-            // Sitzung läuft, aber die Brille bietet keine Gesten an – eine Tatsache, kein Fehler
-            gestureHint = "Diese Brille meldet keine Gesten"
+            // Session is running, but the glasses offer no gestures – a fact, not an error
+            gestureHint = "These glasses report no gestures"
             return
         }
         inputs = attached
         inputsLeftInactive = false
-        // Gleich abonnieren – auch diese Publisher wiederholen nichts
+        // Subscribe right away – these publishers don't replay anything either
         attached.statePublisher.listen { [weak self] state in
             Task { @MainActor [weak self] in self?.handle(inputsState: state, of: attached) }
         }.store(in: inputsTokens)
@@ -749,17 +749,17 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
             for await event in events {
                 self?.handle(inputEvent: event)
             }
-            // Strom zu Ende (z. B. nach einem Fehler) – die Fähigkeit bleibt angehängt, also neu anhängen
+            // Stream ended (e.g. after an error) – the capability stays attached, so reattach
             guard !Task.isCancelled, let self, self.inputs === attached, let session = self.deviceSession else { return }
             self.retryInputs(on: session)
         }
     }
 
-    /// Inputs neu anhängen, höchstens `maxInputsRetries`-mal in Folge (zurückgesetzt, sobald sie aktiv sind)
+    /// Reattach inputs, at most `maxInputsRetries` times in a row (reset as soon as they are active)
     private func retryInputs(on session: DeviceSession) {
         guard !inputsBlocked, inputsAttachTask == nil else { return }
         guard inputsRetries < maxInputsRetries else {
-            gestureHint = "Gesten der Brille reagieren nicht – Brille aus- und einschalten"
+            gestureHint = "Glasses gestures are not responding – switch the glasses off and on"
             return
         }
         inputsRetries += 1
@@ -788,8 +788,8 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
             inputsLeftInactive = true
         case .inactive:
             gesturesActive = false
-            // „inactive“ ist auch der Ausgangszustand – nur ein Rückfall zählt (z. B. nach einem Foto
-            // oder einer Aktivierung, die nach 10 s abgelaufen ist)
+            // “inactive” is also the initial state – only a relapse counts (e.g. after a photo
+            // or an activation that timed out after 10 s)
             guard inputsLeftInactive else { return }
             retryInputs(on: session)
         @unknown default:
@@ -799,48 +799,48 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
 
     private func handle(inputsError error: InputsError, of capability: Inputs) {
         guard inputs === capability else { return }
-        print("[Brille] Gesten-Fehler: \(error.description)")
+        print("[Glasses] Gesture error: \(error.description)")
         switch error {
         case .permissionDenied:
             inputsBlocked = true
             gesturesActive = false
-            gestureHint = "Gesten nicht freigeschaltet – Entwicklermodus in der Meta-AI-App an?"
+            gestureHint = "Gestures not enabled – is developer mode on in the Meta AI app?"
         case .capabilityUnavailable:
             inputsBlocked = true
             gesturesActive = false
-            gestureHint = "Diese Brille bietet Apps keine Gesten an"
+            gestureHint = "These glasses offer no gestures to apps"
         default:
-            // Alles andere fängt das Neu-Anhängen ab (Fehler lassen die Fähigkeit angehängt)
+            // Reattaching handles everything else (errors leave the capability attached)
             if let session = deviceSession { retryInputs(on: session) }
         }
     }
 
-    /// Eine Geste der Brille in die Sprache der App übersetzen. Alles wird geloggt – wie die echte
-    /// Brille Doppeldruck und Wischen zerlegt, ist auf Hardware noch nicht nachgemessen.
+    /// Translate a glasses gesture into the app's language. Everything is logged – how the real
+    /// glasses split double press and swipe has not yet been measured on hardware.
     private func handle(inputEvent event: InputEvent) {
-        print("[Brille] Geste: \(event)")
+        print("[Glasses] Gesture: \(event)")
         switch event {
         case .select:
-            // Doppeltipp auf das Touchpad (Einzeltipp und Halten bleiben beim System)
+            // Double tap on the touchpad (single tap and hold stay with the system)
             onGesture?(.listen)
         case .capture(let pressType, _, _):
-            // Nur kurz drücken – Halten und Doppeldruck bleiben ungenutzt
+            // Short press only – hold and double press stay unused
             guard pressType == .shortPress else { return }
             onGesture?(.photo)
         case .button:
-            // Aktionstaste (Oakley Meta Vanguard) wie Doppeltipp
+            // Action button (Oakley Meta Vanguard) like double tap
             onGesture?(.listen)
         case .back:
             onGesture?(.cancel)
         case .nav, .drag:
-            // Wischen (sonst Lautstärke der Brille) – bewusst ohne Aktion
+            // Swipe (otherwise the glasses' volume) – deliberately no action
             break
         @unknown default:
             break
         }
     }
 
-    // MARK: - Gerätezustand (Name, Akku, Bügel)
+    // MARK: - Device state (name, battery, temples)
 
     private func observeDevice(_ device: Device?) {
         deviceTokens.clear()
@@ -850,8 +850,8 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         deviceModel = Self.modelName(device.deviceType())
         apply(DeviceState(linkState: device.linkState, batteryLevel: device.batteryLevel, hingeState: device.hingeState))
         switch device.compatibility() {
-        case .deviceUpdateRequired: updateHint = "Brillen-Update nötig: Meta-AI-App öffnen und Firmware aktualisieren."
-        case .sdkUpdateRequired: updateHint = "Diese App-Version ist zu alt für die Brillen-Firmware – bitte RayBan Claude aktualisieren."
+        case .deviceUpdateRequired: updateHint = "Glasses update required: open the Meta AI app and update the firmware."
+        case .sdkUpdateRequired: updateHint = "This app version is too old for the glasses firmware – please update RayBan Claude."
         default: updateHint = nil
         }
         device.addDeviceStateListener { [weak self] state in
@@ -860,7 +860,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     }
 
     private func apply(_ state: DeviceState) {
-        // Bügel wieder auf oder Brille wieder verbunden → Gesten-Sitzung neu aufbauen
+        // Temples open again or glasses reconnected → rebuild the gesture session
         let returned = (state.hingeState == .open && hingesOpen == false)
             || (state.linkState == .connected && !hasActiveDevice)
         batteryLevel = state.batteryLevel
@@ -870,7 +870,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         case .closed: hingesOpen = false
         default: hingesOpen = nil
         }
-        // Die Kamera startet beim nächsten Foto ohnehin neu – nur die Sitzung für die Gesten kommt zurück
+        // The camera restarts at the next photo anyway – only the session for gestures comes back
         if returned { ensureGestureSession(resetRetries: true) }
     }
 
@@ -881,12 +881,12 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         case .metaRayBanDisplay: return "Meta Ray-Ban Display"
         case .oakleyMetaHSTN: return "Oakley Meta HSTN"
         case .oakleyMetaVanguard: return "Oakley Meta Vanguard"
-        case .metaGlasses: return "Meta-Brille"
-        default: return "Unbekannte Brille"
+        case .metaGlasses: return "Meta glasses"
+        default: return "Unknown glasses"
         }
     }
 
-    // MARK: - Fehlertexte
+    // MARK: - Error texts
 
     private func handleUpdateRequirement(_ error: DeviceSessionError) async {
         guard error == .datAppOnTheGlassesUpdateRequired else { return }
@@ -895,36 +895,36 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
 
     private func describe(_ error: DeviceSessionError) -> String {
         switch error {
-        case .noEligibleDevice: return "Keine Brille gefunden. Einschalten, Bügel öffnen, in der Meta-AI-App verbunden?"
-        case .sessionAlreadyExists: return "Die Brille wird schon von einer anderen App genutzt."
-        case .thermalCritical, .thermalEmergency: return "Brille zu warm – kurz abkühlen lassen."
-        case .batteryCritical: return "Akku der Brille fast leer – bitte laden."
-        case .peakPowerShutdown: return "Brille hat wegen Leistungsspitze abgeschaltet – kurz warten."
-        case .datAppOnTheGlassesUpdateRequired: return "Update auf der Brille nötig – die Meta-AI-App öffnet sich."
-        case .insufficientSDKVersion: return "Diese App-Version ist zu alt für die Brille – bitte RayBan Claude aktualisieren."
-        case .dwaUnavailable, .dwaOutOfStuRange: return "Brillen-Software meldet ein Problem – Meta-AI-App öffnen und Brille aktualisieren."
-        default: return "Brillen-Sitzung fehlgeschlagen: \(error.localizedDescription)"
+        case .noEligibleDevice: return "No glasses found. Switch them on, open the temples, connected in the Meta AI app?"
+        case .sessionAlreadyExists: return "The glasses are already in use by another app."
+        case .thermalCritical, .thermalEmergency: return "Glasses too warm – let them cool down briefly."
+        case .batteryCritical: return "Glasses battery almost empty – please charge."
+        case .peakPowerShutdown: return "Glasses shut down due to a power spike – wait a moment."
+        case .datAppOnTheGlassesUpdateRequired: return "Update needed on the glasses – the Meta AI app will open."
+        case .insufficientSDKVersion: return "This app version is too old for the glasses – please update RayBan Claude."
+        case .dwaUnavailable, .dwaOutOfStuRange: return "Glasses software reports a problem – open the Meta AI app and update the glasses."
+        default: return "Glasses session failed: \(error.localizedDescription)"
         }
     }
 
     private func describe(_ error: StreamError) -> String {
         switch error {
-        case .deviceNotFound: return "Brille nicht gefunden. Einschalten und Bügel öffnen."
-        case .deviceNotConnected: return "Brille getrennt – Bluetooth prüfen."
-        case .permissionDenied: return "Kamera-Freigabe fehlt – in der Meta-AI-App erlauben."
-        case .hingesClosed: return "Bügel geschlossen – zum Weitermachen aufklappen."
-        case .thermalHot: return "Brille zu warm – Stream pausiert."
-        case .batteryLow: return "Akku der Brille niedrig – bitte laden."
-        case .peakPowerLimit: return "Leistungsgrenze erreicht – kurz warten."
-        case .timeout: return "Zeitüberschreitung – erneut versuchen."
-        case .videoStreamingError, .audioStreamingError: return "Videostream unterbrochen – erneut verbinden."
-        case .internalError: return "Interner SDK-Fehler – App neu starten."
-        default: return "Fehler der Brille: \(error.localizedDescription)"
+        case .deviceNotFound: return "Glasses not found. Switch them on and open the temples."
+        case .deviceNotConnected: return "Glasses disconnected – check Bluetooth."
+        case .permissionDenied: return "Camera permission missing – allow it in the Meta AI app."
+        case .hingesClosed: return "Temples closed – open them to continue."
+        case .thermalHot: return "Glasses too warm – stream paused."
+        case .batteryLow: return "Glasses battery low – please charge."
+        case .peakPowerLimit: return "Power limit reached – wait a moment."
+        case .timeout: return "Timed out – try again."
+        case .videoStreamingError, .audioStreamingError: return "Video stream interrupted – reconnect."
+        case .internalError: return "Internal SDK error – restart the app."
+        default: return "Glasses error: \(error.localizedDescription)"
         }
     }
 }
 
-/// Drosselt die JPEG-Erzeugung (thread-sicher, läuft im Listener der Brille).
+/// Throttles JPEG generation (thread-safe, runs in the glasses listener).
 final class FrameGate: @unchecked Sendable {
     private let lock = NSLock()
     private var frameInterval: TimeInterval = 1.0

@@ -1,7 +1,7 @@
 {
   "name": "raybanclaude-channel",
   "version": "2.1.0",
-  "description": "RayBan Claude – Channel für Claude Code: verbindet iPhone und Ray-Ban Meta Gen 2 mit deiner Claude-Code-Sitzung",
+  "description": "RayBan Claude – channel for Claude Code: connects iPhone and Ray-Ban Meta Gen 2 to your Claude Code session",
   "license": "MIT",
   "type": "module",
   "private": true,

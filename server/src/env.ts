@@ -1,18 +1,18 @@
-// ── Umgebung laden ──────────────────────────────────────────────────
-// Dieses Modul MUSS als erstes in index.ts importiert werden, damit die
-// Variablen aus der .env gesetzt sind, bevor andere Module sie lesen.
+// ── Load environment ──────────────────────────────────────────────────
+// This module MUST be imported first in index.ts so that the variables
+// from the .env are set before other modules read them.
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 
-/** Wurzelverzeichnis des Servers (eine Ebene über src/ bzw. dist/). */
+/** Root directory of the server (one level above src/ or dist/). */
 export const SERVER_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   ".."
 );
 
-// .env aus dem server-Ordner laden – unabhängig vom Arbeitsverzeichnis.
-// Bereits gesetzte Umgebungsvariablen haben Vorrang (kein override).
-// Fehlt die Datei, passiert nichts (Variablen können auch direkt gesetzt sein).
+// Load .env from the server folder - independent of the working directory.
+// Already-set environment variables take precedence (no override).
+// If the file is missing, nothing happens (variables can also be set directly).
 dotenv.config({ path: path.join(SERVER_ROOT, ".env"), quiet: true });

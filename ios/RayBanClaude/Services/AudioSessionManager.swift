@@ -1,12 +1,12 @@
 import Foundation
 import AVFoundation
 
-/// Verwaltet die Audio-Session für Sprechen und Zuhören.
+/// Manages the audio session for speaking and listening.
 ///
-/// Wichtig für Ray-Ban Meta Gen 2: Die Session wird nur EINMAL auf
-/// `.playAndRecord` + Bluetooth-HFP konfiguriert und danach nicht mehr ständig
-/// umgeschaltet – Meta rät davon ab, die AVAudioSession bei offener Brillen-Sitzung
-/// neu zu konfigurieren (führt sonst zu „Device unavailable“).
+/// Important for Ray-Ban Meta Gen 2: the session is configured only ONCE as
+/// `.playAndRecord` + Bluetooth HFP and is not switched constantly afterwards –
+/// Meta advises against reconfiguring the AVAudioSession while a glasses session
+/// is open (otherwise it results in “Device unavailable”).
 final class AudioSessionManager {
     static let shared = AudioSessionManager()
 
@@ -16,7 +16,7 @@ final class AudioSessionManager {
         setupNotifications()
     }
 
-    /// Sprach-Chat mit Bluetooth-Mikrofon (Brille). Idempotent: ändert nichts, wenn schon passend.
+    /// Voice chat with Bluetooth microphone (glasses). Idempotent: changes nothing if already suitable.
     func configureForVoiceChat() throws {
         let session = AVAudioSession.sharedInstance()
         let alreadyConfigured = session.category == .playAndRecord
@@ -29,33 +29,33 @@ final class AudioSessionManager {
         routeToBluetoothMicIfAvailable()
     }
 
-    /// Reihenfolge für Mikrofon und Lautsprecher: Ray-Ban Meta → anderes Bluetooth-Headset → iPhone.
-    /// Bei Bluetooth-Sprachverbindungen (HFP) folgt der Lautsprecher automatisch dem Mikrofon.
+    /// Order for microphone and speaker: Ray-Ban Meta → other Bluetooth headset → iPhone.
+    /// With Bluetooth voice connections (HFP), the speaker automatically follows the microphone.
     func routeToBluetoothMicIfAvailable() {
         let session = AVAudioSession.sharedInstance()
         guard let inputs = session.availableInputs else { return }
         let current = session.currentRoute.inputs.first
 
-        // 1. Die Brille hat immer Vorrang – auch vor Auto, AirPods & Co.
+        // 1. The glasses always take priority – also over car, AirPods & co.
         if let glasses = inputs.first(where: Self.isMetaGlasses) {
             if current?.uid != glasses.uid { setPreferred(glasses, in: session) }
             return
         }
-        // 2. Sonst ein anderes Bluetooth-Headset, falls schon eins aktiv ist bzw. verfügbar
+        // 2. Otherwise another Bluetooth headset, if one is already active or available
         if let current, Self.isBluetooth(current) { return }
         if let headset = inputs.first(where: { $0.portType == .bluetoothHFP }) ?? inputs.first(where: { $0.portType == .bluetoothLE }) {
             setPreferred(headset, in: session)
             return
         }
-        print("[Audio] Keine Brille und kein Bluetooth-Mikrofon – nutze das iPhone")
+        print("[Audio] No glasses and no Bluetooth microphone – using the iPhone")
     }
 
     private func setPreferred(_ input: AVAudioSessionPortDescription, in session: AVAudioSession) {
         do {
             try session.setPreferredInput(input)
-            print("[Audio] Mikrofon und Lautsprecher: \(input.portName)")
+            print("[Audio] Microphone and speaker: \(input.portName)")
         } catch {
-            print("[Audio] Umschalten auf \(input.portName) fehlgeschlagen: \(error)")
+            print("[Audio] Switching to \(input.portName) failed: \(error)")
         }
     }
 
@@ -63,7 +63,7 @@ final class AudioSessionManager {
         port.portType == .bluetoothHFP || port.portType == .bluetoothLE
     }
 
-    /// Ray-Ban Meta / Oakley Meta erkennt man am Namen des Bluetooth-Geräts
+    /// Ray-Ban Meta / Oakley Meta is recognized by the Bluetooth device name
     static func isMetaGlasses(_ port: AVAudioSessionPortDescription) -> Bool {
         guard isBluetooth(port) else { return false }
         let name = port.portName.lowercased()
@@ -74,11 +74,11 @@ final class AudioSessionManager {
         AVAudioSession.sharedInstance().currentRoute.inputs.contains(where: Self.isBluetooth)
     }
 
-    /// Für die Anzeige: Worüber laufen Mikrofon und Stimme gerade?
+    /// For display: what are the microphone and voice currently routed through?
     var currentRouteLabel: String {
         let route = AVAudioSession.sharedInstance().currentRoute
         guard let input = route.inputs.first else { return "–" }
-        if Self.isMetaGlasses(input) { return "Brille (\(input.portName))" }
+        if Self.isMetaGlasses(input) { return "Glasses (\(input.portName))" }
         return Self.isBluetooth(input) ? input.portName : "iPhone"
     }
 
@@ -100,7 +100,7 @@ final class AudioSessionManager {
     @objc private func handleRouteChange(notification: Notification) {
         guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
               let reason = AVAudioSession.RouteChangeReason(rawValue: raw) else { return }
-        // Brille (wieder) da oder Route von außen umgestellt → Brille zurückholen
+        // Glasses (back) or route changed externally → take the glasses back
         if reason == .newDeviceAvailable || reason == .override || reason == .routeConfigurationChange {
             routeToBluetoothMicIfAvailable()
         }

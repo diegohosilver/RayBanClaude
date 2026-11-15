@@ -1,5 +1,5 @@
 /**
- * Eingabevalidierung an der Systemgrenze (App → Server). Whitelist statt Blacklist.
+ * Input validation at the system boundary (app → server). Allowlist instead of blocklist.
  */
 
 import {
@@ -9,7 +9,7 @@ import {
 } from './constants.ts'
 import { CONTROL_CHARS, HEIC_BRAND, MESSAGE_ID, MODE_NAME_DISALLOWED } from './patterns.ts'
 
-/** Fehler mit HTTP-Status, dessen Text gefahrlos an den Client gehen darf. */
+/** Error with an HTTP status whose text may safely be sent to the client. */
 export class HttpError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message)
@@ -53,7 +53,7 @@ export function parsePort(raw: string | undefined, fallback: number): number {
   return Number.isInteger(n) && n >= MIN_PORT && n <= MAX_PORT ? n : fallback
 }
 
-/** Ermittelt das Bildformat anhand der Magic Bytes – dem Dateinamen wird nie vertraut. */
+/** Determines the image format from the magic bytes – the file name is never trusted. */
 export function imageExt(buf: Uint8Array): ImageExt | null {
   if (buf.length < MIN_IMAGE_HEADER_BYTES) return null
   const head = Buffer.from(buf.subarray(0, HEIC_BRAND_END))
@@ -64,10 +64,10 @@ export function imageExt(buf: Uint8Array): ImageExt | null {
   return null
 }
 
-/** Prüft Größe und Format eines Bildes und liefert die passende Dateiendung. */
+/** Checks the size and format of an image and returns the matching file extension. */
 export function requireImage(buf: Uint8Array): ImageExt {
-  if (buf.length > MAX_IMAGE_BYTES) throw new HttpError(HTTP_PAYLOAD_TOO_LARGE, `Bild ist zu groß (max. ${MAX_IMAGE_MB} MB)`)
+  if (buf.length > MAX_IMAGE_BYTES) throw new HttpError(HTTP_PAYLOAD_TOO_LARGE, `Image is too large (max. ${MAX_IMAGE_MB} MB)`)
   const ext = imageExt(buf)
-  if (!ext) throw new HttpError(HTTP_UNSUPPORTED_MEDIA, 'Nur JPEG-, PNG- oder HEIC-Bilder sind erlaubt')
+  if (!ext) throw new HttpError(HTTP_UNSUPPORTED_MEDIA, 'Only JPEG, PNG or HEIC images are allowed')
   return ext
 }

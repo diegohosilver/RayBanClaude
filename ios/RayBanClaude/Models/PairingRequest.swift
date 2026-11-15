@@ -1,18 +1,18 @@
 import Foundation
 
-/// Kopplungsdaten aus dem QR-Code im PC-Dashboard:
+/// Pairing data from the QR code in the PC dashboard:
 /// `raybanclaude://pair?host=192.168.1.20&port=18790&token=…&remote=100.101.102.103`
 ///
-/// `remote` (optional) ist die Tailscale-Adresse des PCs – darüber erreicht die App
-/// den PC auch unterwegs, also weiter über das Claude-Abo statt über einen API-Key.
+/// `remote` (optional) is the PC's Tailscale address – through it the app reaches
+/// the PC while you are away too, so it keeps using the Claude subscription instead of an API key.
 ///
-/// Wird vor dem Übernehmen immer bestätigt – ein fremder QR-Code könnte die App
-/// sonst unbemerkt auf einen fremden Server umleiten (und Kamerabilder dorthin schicken).
+/// Always confirmed before it is applied – otherwise a foreign QR code could silently
+/// redirect the app to a foreign server (and send camera images there).
 struct PairingRequest: Identifiable, Equatable {
     let host: String
     let port: Int
     let token: String
-    /// Adresse für unterwegs (Tailscale), falls der PC eine hat
+    /// Address for when you are away (Tailscale), if the PC has one
     let remote: String?
 
     var id: String { "\(host):\(port)" }
@@ -39,7 +39,7 @@ struct PairingRequest: Identifiable, Equatable {
         self.remote = remote.flatMap { Self.isValidHost($0) && $0 != host ? $0 : nil }
     }
 
-    /// IPv4-Adresse oder einfacher Hostname (z. B. „mein-pc.local“)
+    /// IPv4 address or simple hostname (e.g. "my-pc.local")
     static func isValidHost(_ host: String) -> Bool {
         guard (1...253).contains(host.count) else { return false }
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: ".-"))
@@ -47,7 +47,7 @@ struct PairingRequest: Identifiable, Equatable {
             && !host.hasPrefix(".") && !host.hasPrefix("-")
     }
 
-    /// 16–128 Zeichen aus Buchstaben, Ziffern, _ und -
+    /// 16–128 characters: letters, digits, _ and -
     static func isValidToken(_ token: String) -> Bool {
         guard (16...128).contains(token.count) else { return false }
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_-"))

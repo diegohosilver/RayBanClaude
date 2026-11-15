@@ -1,6 +1,6 @@
-# Baut die iPhone-App in der Cloud (kostenlos für öffentliche Repos) – ganz ohne eigenen Mac.
-# Ergebnis: RayBanClaude.ipa (unsigniert) → unter Windows mit Sideloadly + kostenloser Apple-ID installieren.
-name: iOS-App bauen
+# Builds the iPhone app in the cloud (free for public repos) – no Mac of your own needed.
+# Result: RayBanClaude.ipa (unsigned) → install on Windows with Sideloadly + a free Apple ID.
+name: Build iOS app
 
 on:
   push:
@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   build:
-    name: IPA bauen
+    name: Build IPA
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -29,19 +29,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Xcode wählen (Swift 6.3+ für das Meta DAT SDK 1.x)
+      - name: Select Xcode (Swift 6.3+ for the Meta DAT SDK 1.x)
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: latest-stable
 
-      - name: XcodeGen installieren
+      - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Xcode-Projekt erzeugen
+      - name: Generate Xcode project
         working-directory: ios
         run: xcodegen generate
 
-      - name: App bauen (unsigniert)
+      - name: Build app (unsigned)
         working-directory: ios
         run: |
           set -o pipefail
@@ -56,18 +56,18 @@ jobs:
             build 2>&1 | tee build.log | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build.log
 
-      - name: Compiler-Warnungen im eigenen Code
+      - name: Compiler warnings in our own code
         working-directory: ios
         run: |
           grep -E "RayBanClaude/.*warning:" build.log | sed 's|.*/RayBanClaude/||' | sort -u | head -100 || true
-          echo "Anzahl: $(grep -cE 'RayBanClaude/.*warning:' build.log || true)"
+          echo "Count: $(grep -cE 'RayBanClaude/.*warning:' build.log || true)"
 
-      - name: Fehlerausgabe
+      - name: Error output
         if: failure()
         working-directory: ios
         run: grep -E -B2 -A6 "error:" build.log | head -300 || tail -200 build.log
 
-      - name: IPA packen
+      - name: Package IPA
         working-directory: ios
         run: |
           mkdir -p Payload
@@ -75,7 +75,7 @@ jobs:
           zip -qry RayBanClaude.ipa Payload
           ls -lh RayBanClaude.ipa
 
-      - name: IPA hochladen
+      - name: Upload IPA
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: RayBanClaude-ipa
@@ -83,7 +83,7 @@ jobs:
           retention-days: 30
 
   release:
-    name: IPA an Release anhängen
+    name: Attach IPA to release
     needs: build
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
@@ -93,10 +93,10 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: RayBanClaude-ipa
-      - name: Prüfsumme erzeugen
+      - name: Create checksum
         run: sha256sum RayBanClaude.ipa | tee RayBanClaude.ipa.sha256
 
-      - name: An Release anhängen
+      - name: Attach to release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}

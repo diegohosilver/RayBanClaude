@@ -18,16 +18,16 @@ struct ContentView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsView(viewModel: viewModel, rayBanManager: viewModel.rayBanManager, modeManager: viewModel.modeManager)
             }
-            .alert("Mit PC koppeln?", isPresented: pairingBinding) {
-                Button("Koppeln") { viewModel.confirmPairing() }
-                Button("Abbrechen", role: .cancel) { viewModel.pendingPairing = nil }
+            .alert("Pair with PC?", isPresented: pairingBinding) {
+                Button("Pair") { viewModel.confirmPairing() }
+                Button("Cancel", role: .cancel) { viewModel.pendingPairing = nil }
             } message: {
                 Text(pairingMessage)
             }
             .onChange(of: viewModel.modeManager.activeMode.id) { _, _ in showQuickActionsTemporarily() }
             .onChange(of: viewModel.notice) { _, notice in hideNoticeLater(notice) }
             .onAppear {
-                // Standard: iPhone darf sich sperren – die App hört über die Brille weiter (Hosentaschen-Modus)
+                // Default: the iPhone may lock – the app keeps listening through the glasses (pocket mode)
                 UIApplication.shared.isIdleTimerDisabled = viewModel.config.keepScreenOn
                 if DemoMode.showSettings { showSettings = true }
             }
@@ -37,7 +37,7 @@ struct ContentView: View {
             .task { await requestPermissionsAndConnect() }
     }
 
-    // MARK: - Aufbau
+    // MARK: - Layout
 
     private var layeredContent: some View {
         ZStack {
@@ -112,7 +112,7 @@ struct ContentView: View {
         }
     }
 
-    /// Rückfragen: Anruf/Nachricht/Navigation und Werkzeug-Freigaben
+    /// Follow-up questions: call/message/navigation and tool approvals
     private var promptCards: some View {
         VStack(spacing: 0) {
             if let confirmation = viewModel.phoneActions.confirmation {
@@ -146,7 +146,7 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Bindungen und Abläufe
+    // MARK: - Bindings and flows
 
     private var messageDraftBinding: Binding<MessageDraft?> {
         Binding(get: { viewModel.phoneActions.messageDraft }, set: { viewModel.phoneActions.messageDraft = $0 })
@@ -159,7 +159,7 @@ struct ContentView: View {
     private var pairingMessage: String {
         let host = viewModel.pendingPairing?.host ?? ""
         let port = viewModel.pendingPairing.map { String($0.port) } ?? ""
-        return "RayBan Claude verbindet sich mit \(host):\(port). Nur bestätigen, wenn du den QR-Code gerade in deinem eigenen Dashboard gescannt hast."
+        return "RayBan Claude will connect to \(host):\(port). Only confirm if you just scanned the QR code in your own dashboard."
     }
 
     private func hideNoticeLater(_ notice: String?) {
@@ -175,11 +175,11 @@ struct ContentView: View {
         if await viewModel.speechManager.requestAuthorization() {
             await viewModel.connect()
         } else {
-            viewModel.errorMessage = "Mikrofon/Spracherkennung nicht erlaubt – in den iOS-Einstellungen freigeben"
+            viewModel.errorMessage = "Microphone/speech recognition not allowed – enable it in iOS Settings"
         }
     }
 
-    // MARK: - Kamera
+    // MARK: - Camera
 
     @ViewBuilder
     private var cameraLayer: some View {
@@ -196,7 +196,7 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Modi
+    // MARK: - Modes
 
     private var modeSelector: some View {
         ScrollViewReader { proxy in
@@ -241,7 +241,7 @@ struct ContentView: View {
             .shadow(color: isActive ? mode.swiftColor.opacity(0.6) : .clear, radius: 8)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Modus \(mode.name)\(isActive ? ", aktiv" : "")")
+        .accessibilityLabel("Mode \(mode.name)\(isActive ? ", active" : "")")
     }
 
     private var quickActionBar: some View {
@@ -274,7 +274,7 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Statusleiste
+    // MARK: - Status bar
 
     private var topBar: some View {
         HStack(spacing: 8) {
@@ -334,7 +334,7 @@ struct ContentView: View {
                     .frame(width: 36, height: 36)
                     .hudPanel(border: .hudLineStrong)
             }
-            .accessibilityLabel("Einstellungen")
+            .accessibilityLabel("Settings")
         }
         .foregroundStyle(Color.hudInk)
     }
@@ -346,11 +346,11 @@ struct ContentView: View {
                 .foregroundStyle(Color.hudCyan)
                 .hudGlow()
             VStack(alignment: .leading, spacing: 4) {
-                Text("Mit deinem PC koppeln")
+                Text("Pair with your PC")
                     .font(.hudDisplay(14))
                     .textCase(.uppercase)
                     .foregroundStyle(Color.hudInk)
-                Text("Auf dem PC Claude starten, Dashboard öffnen (localhost:18790) und den QR-Code mit der iPhone-Kamera scannen.")
+                Text("Start Claude on the PC, open the dashboard (localhost:18790) and scan the QR code with the iPhone camera.")
                     .font(.caption)
                     .foregroundStyle(Color.hudMuted)
             }
@@ -396,7 +396,7 @@ struct ContentView: View {
                     .frame(width: 30, height: 30)
                     .hudPanel(border: Color.hudOK.opacity(0.5))
             }
-            .accessibilityLabel("Code kopieren")
+            .accessibilityLabel("Copy code")
             Button { viewModel.sendCodeToChat(code) } label: {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 14, weight: .bold))
@@ -405,7 +405,7 @@ struct ContentView: View {
                     .background(Color.hudOK, in: RoundedRectangle(cornerRadius: HUDMetrics.radius))
                     .hudGlow(.hudOK)
             }
-            .accessibilityLabel("Code an Claude senden")
+            .accessibilityLabel("Send code to Claude")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -435,14 +435,14 @@ struct ContentView: View {
                     .frame(width: 22, height: 22)
                     .hudPanel(border: Color.hudBad.opacity(0.6))
             }
-            .accessibilityLabel("Meldung schließen")
+            .accessibilityLabel("Dismiss message")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .hudPanel(border: .hudBad, glow: Color.hudBad.opacity(0.35), accent: .hudBad, tint: .hudBad)
     }
 
-    // MARK: - Eingabe
+    // MARK: - Input
 
     private var textInputBar: some View {
         HStack(spacing: 8) {
@@ -451,8 +451,8 @@ struct ContentView: View {
                 .foregroundStyle(Color.hudCyan)
                 .hudGlow(radius: 4)
                 .accessibilityHidden(true)
-            TextField("Nachricht", text: $textInput,
-                      prompt: Text("Nachricht …").foregroundStyle(Color.hudMuted), axis: .vertical)
+            TextField("Message", text: $textInput,
+                      prompt: Text("Message …").foregroundStyle(Color.hudMuted), axis: .vertical)
                 .lineLimit(1...4)
                 .textFieldStyle(.plain)
                 .foregroundStyle(Color.hudInk)
@@ -467,7 +467,7 @@ struct ContentView: View {
                         .background(Color.hudCyan, in: RoundedRectangle(cornerRadius: HUDMetrics.radius))
                         .hudGlow()
                 }
-                .accessibilityLabel("Senden")
+                .accessibilityLabel("Send")
             }
         }
         .padding(.horizontal, 12)
@@ -490,12 +490,12 @@ struct ContentView: View {
             } label: {
                 VStack(spacing: 4) {
                     Image(systemName: "arrow.counterclockwise").font(.system(size: 18, weight: .medium))
-                    Text("Neu").font(.hudMono(10, weight: .semibold)).textCase(.uppercase).tracking(1)
+                    Text("New").font(.hudMono(10, weight: .semibold)).textCase(.uppercase).tracking(1)
                 }
                 .foregroundStyle(Color.hudMuted)
                 .frame(maxWidth: .infinity)
             }
-            .accessibilityLabel("Gespräch zurücksetzen")
+            .accessibilityLabel("Reset conversation")
 
             micButton
 
@@ -516,17 +516,17 @@ struct ContentView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .accessibilityLabel("Kamera wechseln, aktuell \(viewModel.activeFrameSource.rawValue)")
+            .accessibilityLabel("Switch camera, currently \(viewModel.activeFrameSource.rawValue)")
         }
         .padding(.horizontal, 24)
-        // Platz für die Reaktor-Ringe um den Mikrofon-Knopf
+        // Room for the reactor rings around the microphone button
         .padding(.vertical, 18)
         .hudPanel(border: .hudLineStrong)
         .overlay(HUDCorners(length: 10).stroke(Color.hudCyan.opacity(0.8), lineWidth: 1.5))
         .padding(.horizontal, 12)
     }
 
-    /// Mikrofon-Knopf; im Bereitschafts-Zustand („Sag ‚Hey Claude‘“) drehen sich Reaktor-Ringe darum
+    /// Microphone button; in standby ("Say 'Hey Claude'") reactor rings rotate around it
     private var micButton: some View {
         Button {
             haptic(viewModel.state == .speaking ? .rigid : .medium)
@@ -577,7 +577,7 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Hilfen
+    // MARK: - Helpers
 
     @ViewBuilder
     private var stateIcon: some View {
@@ -602,7 +602,7 @@ struct ContentView: View {
         }
     }
 
-    /// Ohne Verbindung ist der Knopf gedimmt (tippen verbindet neu)
+    /// Without a connection the button is dimmed (tapping reconnects)
     private var micIsDimmed: Bool {
         switch viewModel.state {
         case .listening, .thinking, .speaking: return false
@@ -619,7 +619,7 @@ struct ContentView: View {
         }
     }
 
-    /// Nachtblaues Symbol auf leuchtendem Knopf, helles auf gedimmtem
+    /// Night-blue icon on a glowing button, light one on a dimmed button
     private var micIconColor: Color {
         micIsDimmed ? .hudInk : .hudBackground
     }
@@ -636,11 +636,11 @@ struct ContentView: View {
 
     private var micAccessibilityLabel: String {
         switch viewModel.state {
-        case .listening: return "Zuhören beenden"
-        case .speaking: return "Sprechen unterbrechen"
-        case .disconnected: return "Verbinden"
-        case .standby: return "Sprechen – oder einfach „Hey Claude“ sagen"
-        default: return "Sprechen"
+        case .listening: return "Stop listening"
+        case .speaking: return "Interrupt speech"
+        case .disconnected: return "Connect"
+        case .standby: return "Speak – or just say \"Hey Claude\""
+        default: return "Speak"
         }
     }
 
@@ -662,17 +662,17 @@ struct ContentView: View {
 
     private var routeLabel: String {
         switch viewModel.route {
-        case .pc: return viewModel.viaTailscale ? "PC · unterwegs" : "PC"
-        case .direct: return "Direkt"
+        case .pc: return viewModel.viaTailscale ? "PC · away" : "PC"
+        case .direct: return "Direct"
         case .none: return "Offline"
         }
     }
 
     private var routeAccessibility: String {
         switch viewModel.route {
-        case .pc: return viewModel.viaTailscale ? "Unterwegs über Tailscale mit dem PC verbunden" : "Mit dem PC verbunden"
-        case .direct: return "Ohne PC, direkt mit Claude verbunden"
-        case .none: return "Nicht verbunden"
+        case .pc: return viewModel.viaTailscale ? "Connected to the PC via Tailscale while away" : "Connected to the PC"
+        case .direct: return "No PC, connected directly to Claude"
+        case .none: return "Not connected"
         }
     }
 
@@ -691,7 +691,7 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Freigabe-Karte (Permission-Relay)
+// MARK: - Approval card (permission relay)
 
 struct PermissionCard: View {
     let request: PermissionRequest
@@ -699,7 +699,7 @@ struct PermissionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Claude möchte \(request.toolName) ausführen", systemImage: "lock.shield.fill")
+            Label("Claude wants to run \(request.toolName)", systemImage: "lock.shield.fill")
                 .font(.hudDisplay(13))
                 .textCase(.uppercase)
                 .foregroundStyle(Color.hudGold)
@@ -719,24 +719,24 @@ struct PermissionCard: View {
             }
             HStack {
                 Button(role: .destructive) { answer(false) } label: {
-                    Label("Ablehnen", systemImage: "xmark").frame(maxWidth: .infinity)
+                    Label("Deny", systemImage: "xmark").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(HUDButtonStyle(color: .hudBad))
                 Button { answer(true) } label: {
-                    Label("Erlauben", systemImage: "checkmark").frame(maxWidth: .infinity)
+                    Label("Allow", systemImage: "checkmark").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(HUDButtonStyle(color: .hudOK, filled: true))
             }
-            Text("Oder einfach „Ja“ bzw. „Nein“ sagen.").font(.hudMono(10)).foregroundStyle(Color.hudMuted)
+            Text("Or just say \"Yes\" or \"No\".").font(.hudMono(10)).foregroundStyle(Color.hudMuted)
         }
         .padding(14)
         .hudPanel(border: Color.hudGold.opacity(0.7), glow: Color.hudGold.opacity(0.3), accent: .hudGold, tint: .hudGold)
     }
 }
 
-// MARK: - Mikrofon hört zu
+// MARK: - Microphone is listening
 
-/// Pulsierender Ring, solange das Mikrofon offen ist (steht bei „Bewegung reduzieren“ still)
+/// Pulsing ring while the microphone is open (stands still with "Reduce Motion")
 struct ListeningPulse: View {
     let color: Color
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -759,7 +759,7 @@ struct ListeningPulse: View {
     }
 }
 
-// MARK: - Vorschau iPhone-Kamera
+// MARK: - iPhone camera preview
 
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
@@ -776,15 +776,15 @@ struct CameraPreviewView: UIViewRepresentable {
     final class PreviewContainerView: UIView {
         override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
         var previewLayer: AVCaptureVideoPreviewLayer {
-            // layerClass ist oben auf AVCaptureVideoPreviewLayer gesetzt
+            // layerClass is set to AVCaptureVideoPreviewLayer above
             layer as! AVCaptureVideoPreviewLayer // swiftlint:disable:this force_cast
         }
     }
 }
 
-// MARK: - Vorschau Brille
+// MARK: - Glasses preview
 
-/// Eigene Teilansicht, damit nur sie bei jedem Videobild neu gezeichnet wird.
+/// Separate subview so that only it is redrawn on every video frame.
 struct RayBanLayer: View {
     @ObservedObject var rayBanManager: RayBanManager
     let status: FrameSourceStatus
@@ -798,16 +798,16 @@ struct RayBanLayer: View {
                 VStack(spacing: 18) {
                     lens
                     if status == .standby && isConnected {
-                        HUDLabel("Kamera aus")
-                        Text("Die Brille fotografiert nur auf Zuruf – wenn du etwas zeigst oder fragst („Was ist das?“).")
+                        HUDLabel("Camera off")
+                        Text("The glasses only take a photo on demand – when you show or ask something (\"What is that?\").")
                             .font(.subheadline)
                             .foregroundStyle(Color.hudMuted)
                             .multilineTextAlignment(.center)
                     } else if status.isConnected {
                         ProgressView().tint(.hudCyan)
-                        HUDLabel("Empfange Bild der Brille …")
+                        HUDLabel("Receiving image from the glasses …")
                     } else {
-                        Text(isConnected ? status.label : "Erst mit dem PC verbinden")
+                        Text(isConnected ? status.label : "Connect to the PC first")
                             .font(.hudMono(13))
                             .foregroundStyle(Color.hudMuted)
                             .multilineTextAlignment(.center)
@@ -822,7 +822,7 @@ struct RayBanLayer: View {
         }
     }
 
-    /// Brillen-Symbol in einer stillstehenden Linse aus Haarlinien
+    /// Glasses icon inside a stationary lens made of hairlines
     private var lens: some View {
         ZStack {
             Circle()
@@ -850,7 +850,7 @@ struct BatteryBadge: View {
             Text("\(battery) %")
                 .font(.hudMono(11, weight: .medium))
                 .foregroundStyle(battery < 15 ? Color.hudBad : Color.hudInk)
-                .accessibilityLabel("Akku der Brille \(battery) Prozent")
+                .accessibilityLabel("Glasses battery \(battery) percent")
         }
     }
 }
@@ -866,15 +866,15 @@ struct RayBanVideoView: UIViewRepresentable {
         return view
     }
 
-    /// Wird bei jedem neuen Bild aufgerufen (früher lief dafür ein Display-Link,
-    /// der pro Bildschirm-Frame eine Task erzeugte).
+    /// Called on every new frame (this used to run on a display link,
+    /// which created a task per screen frame).
     func updateUIView(_ uiView: UIImageView, context: Context) {
         uiView.image = rayBanManager.latestImage
     }
 }
 
 
-// MARK: - Laufende Timer
+// MARK: - Running timers
 
 struct TimersBar: View {
     let timers: [RunningTimer]
@@ -902,7 +902,7 @@ struct TimersBar: View {
                         .hudPanel(border: Color.hudGold.opacity(0.7), glow: Color.hudGold.opacity(0.25), tint: .hudGold)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("\(timer.isAlarm ? "Wecker" : "Timer") \(timer.label), tippen zum Löschen")
+                    .accessibilityLabel("\(timer.isAlarm ? "Alarm" : "Timer") \(timer.label), tap to delete")
                 }
             }
             .padding(.horizontal, 16)
@@ -920,7 +920,7 @@ struct TimersBar: View {
     }
 }
 
-// MARK: - Rückfrage vor Anruf, Nachricht, Navigation
+// MARK: - Confirmation before call, message, navigation
 
 struct ActionConfirmationCard: View {
     let confirmation: ActionConfirmation
@@ -943,7 +943,7 @@ struct ActionConfirmationCard: View {
                 .foregroundStyle(Color.hudOK)
                 .hudGlow(.hudOK, radius: 4)
             if case .message(let text) = confirmation.kind {
-                Text("„\(text)“").font(.caption).foregroundStyle(Color.hudInk).lineLimit(3)
+                Text("“\(text)”").font(.caption).foregroundStyle(Color.hudInk).lineLimit(3)
             }
             ForEach(confirmation.options) { option in
                 Button { onSelect(option) } label: {
@@ -952,11 +952,11 @@ struct ActionConfirmationCard: View {
                 .buttonStyle(HUDButtonStyle(color: .hudOK, filled: true))
             }
             Button(role: .cancel, action: onCancel) {
-                Text("Abbrechen").frame(maxWidth: .infinity)
+                Text("Cancel").frame(maxWidth: .infinity)
             }
             .buttonStyle(HUDButtonStyle(color: .hudMuted))
             if confirmation.options.count == 1 {
-                Text("Oder einfach „Ja“ bzw. „Nein“ sagen.").font(.hudMono(10)).foregroundStyle(Color.hudMuted)
+                Text("Or just say \"Yes\" or \"No\".").font(.hudMono(10)).foregroundStyle(Color.hudMuted)
             }
         }
         .padding(14)

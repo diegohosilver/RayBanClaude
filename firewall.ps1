@@ -1,9 +1,9 @@
 ﻿<#
-  RayBan Claude – Windows-Firewall freigeben (braucht Administrator-Rechte)
+  RayBan Claude – open the Windows firewall (needs administrator rights)
 
-  Öffnet Port 18790 NUR im privaten Netzwerk (Heim-WLAN) und – falls Tailscale installiert ist –
-  NUR auf dem Tailscale-Adapter für Geräte aus deinem eigenen Tailnet (100.64.0.0/10).
-  Mit -Remove werden beide Regeln wieder entfernt (Deinstallation).
+  Opens port 18790 ONLY on the private network (home Wi-Fi) and – if Tailscale is installed –
+  ONLY on the Tailscale adapter for devices from your own tailnet (100.64.0.0/10).
+  With -Remove both rules are removed again (uninstall).
 #>
 param(
     [switch]$Remove,
@@ -20,22 +20,22 @@ try {
         foreach ($name in @($Lan, $Tailnet)) {
             if (Test-Rule $name) { Remove-NetFirewallRule -DisplayName $name }
         }
-        Write-Host "  ✓ Firewall-Regeln von RayBan Claude entfernt" -ForegroundColor Green
+        Write-Host "  ✓ RayBan Claude firewall rules removed" -ForegroundColor Green
         exit 0
     }
     if (-not (Test-Rule $Lan)) {
         New-NetFirewallRule -DisplayName $Lan -Direction Inbound -Protocol TCP -LocalPort $Port -Profile Private -Action Allow | Out-Null
     }
-    Write-Host "  ✓ Heim-WLAN: Port $Port im privaten Netzwerk offen" -ForegroundColor Green
+    Write-Host "  ✓ Home Wi-Fi: port $Port open on the private network" -ForegroundColor Green
     if (Get-NetAdapter -Name 'Tailscale' -ErrorAction SilentlyContinue) {
         if (-not (Test-Rule $Tailnet)) {
             New-NetFirewallRule -DisplayName $Tailnet -Direction Inbound -Protocol TCP -LocalPort $Port `
                 -InterfaceAlias 'Tailscale' -RemoteAddress 100.64.0.0/10 -Action Allow | Out-Null
         }
-        Write-Host "  ✓ Unterwegs: Port $Port für deine Tailscale-Geräte offen" -ForegroundColor Green
+        Write-Host "  ✓ On the go: port $Port open for your Tailscale devices" -ForegroundColor Green
     }
 } catch {
-    Write-Host "  ! Firewall konnte nicht eingerichtet werden: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "  ! Could not set up the firewall: $($_.Exception.Message)" -ForegroundColor Yellow
     Start-Sleep -Seconds 6
     exit 1
 }

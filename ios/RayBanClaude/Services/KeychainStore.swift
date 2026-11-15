@@ -1,8 +1,8 @@
 import Foundation
 import Security
 
-/// Speichert Geheimnisse (Channel-Token, ElevenLabs-Key) im iOS-Schlüsselbund
-/// statt im Klartext in den UserDefaults.
+/// Stores secrets (channel token, ElevenLabs key) in the iOS Keychain
+/// instead of in plain text in UserDefaults.
 enum KeychainStore {
     private static let service = "com.raybanclaude.secrets"
 
@@ -39,11 +39,11 @@ enum KeychainStore {
         guard !value.isEmpty else { return }
         var add = base
         add[kSecValueData as String] = Data(value.utf8)
-        // Nur auf diesem Gerät, nach dem ersten Entsperren verfügbar (auch im Hintergrund)
+        // This device only, available after first unlock (also in the background)
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let status = SecItemAdd(add as CFDictionary, nil)
         if status != errSecSuccess {
-            print("[Keychain] Speichern fehlgeschlagen (\(key.rawValue)): \(status)")
+            print("[Keychain] Saving failed (\(key.rawValue)): \(status)")
         }
     }
 }

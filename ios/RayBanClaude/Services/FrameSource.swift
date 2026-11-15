@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 enum FrameSourceType: String, CaseIterable, Identifiable {
-    case iPhone = "iPhone-Kamera"
+    case iPhone = "iPhone camera"
     case rayBan = "Ray-Ban Meta"
 
     var id: String { rawValue }
@@ -10,7 +10,7 @@ enum FrameSourceType: String, CaseIterable, Identifiable {
     var shortLabel: String {
         switch self {
         case .iPhone: return "iPhone"
-        case .rayBan: return "Brille"
+        case .rayBan: return "Glasses"
         }
     }
 
@@ -21,7 +21,7 @@ enum FrameSourceType: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Wert für das Feld `source` beim Server
+    /// Value for the `source` field on the server
     var wireName: String {
         switch self {
         case .iPhone: return "iphone"
@@ -39,9 +39,9 @@ protocol FrameSource: AnyObject {
     func start() throws
     func stop()
     func consumeFrame() -> Data?
-    /// Ein frisches, möglichst scharfes Foto (startet die Kamera bei Bedarf kurz)
+    /// A fresh, ideally sharp photo (briefly starts the camera if needed)
     func capturePhoto() async -> Data?
-    /// Kamera schon mal aufwecken – z. B. sobald „Was ist das …“ erkannt wird
+    /// Wake the camera early – e.g. as soon as “What is this …” is recognized
     func prepareCapture()
 }
 
@@ -49,21 +49,21 @@ enum FrameSourceStatus: Equatable {
     case disconnected
     case connecting
     case connected
-    /// Bereit, Kamera aus – fotografiert nur auf Zuruf (Brille)
+    /// Ready, camera off – only takes photos on demand (glasses)
     case standby
     case error(String)
 
     var label: String {
         switch self {
-        case .disconnected: return "Getrennt"
-        case .connecting: return "Verbinde …"
-        case .connected: return "Verbunden"
-        case .standby: return "Bereit – Kamera nur auf Zuruf"
+        case .disconnected: return "Disconnected"
+        case .connecting: return "Connecting …"
+        case .connected: return "Connected"
+        case .standby: return "Ready – camera only on demand"
         case .error(let msg): return msg
         }
     }
 
-    /// Verbunden oder bereit für ein Foto
+    /// Connected or ready for a photo
     var isReady: Bool {
         switch self {
         case .connected, .standby: return true
