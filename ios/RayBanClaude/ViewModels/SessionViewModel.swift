@@ -281,6 +281,9 @@ final class SessionViewModel: ObservableObject {
         speechManager.onSpeechPause = { [weak self] text in
             Task { await self?.handleUserSpeech(text) }
         }
+        speechManager.onVoiceNote = { [weak self] note in
+            self?.transcript.append(TranscriptMessage(role: .system, text: "🔈 \(note)"))
+        }
         speechManager.onWakeWord = { [weak self] in
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             self?.state = .listening
@@ -739,6 +742,9 @@ final class SessionViewModel: ObservableObject {
     private func handleReply(_ reply: ClaudeBridge.Reply) {
         transcript.append(TranscriptMessage(id: reply.id, role: .assistant, text: reply.text, attachments: reply.attachments))
         finishProcessing()
+        if reply.audioPath == nil {
+            transcript.append(TranscriptMessage(role: .system, text: "🔈 The PC sent no voice audio – using the iPhone voice"))
+        }
         speak(reply.text, audioPath: reply.audioPath)
     }
 
@@ -748,6 +754,9 @@ final class SessionViewModel: ObservableObject {
         if let audioPath, let request = bridge.fileRequest(audioPath) {
             speechManager.playRemoteAudio(request: request, fallbackText: text)
         } else {
+            if let audioPath {
+                transcript.append(TranscriptMessage(role: .system, text: "🔈 Could not build the voice audio address (\(audioPath)) – using the iPhone voice"))
+            }
             speechManager.speak(text)
         }
     }

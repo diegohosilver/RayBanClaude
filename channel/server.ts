@@ -342,6 +342,7 @@ async function generateTTS(text: string): Promise<string | undefined> {
     })
     if (!resp.ok) {
       log(`TTS error: HTTP ${resp.status} – the app uses the iPhone voice instead`)
+      logActivity({ direction: 'out', source: 'audio', text: `🔇 ElevenLabs failed (HTTP ${resp.status}) – the app uses the iPhone voice` })
       return undefined
     }
     mkdirSync(OUTBOX_DIR, { recursive: true })
@@ -350,6 +351,7 @@ async function generateTTS(text: string): Promise<string | undefined> {
     return `/files/${name}`
   } catch (e) {
     log(`TTS error: ${errorText(e)} – the app uses the iPhone voice instead`)
+    logActivity({ direction: 'out', source: 'audio', text: `🔇 ElevenLabs failed (${errorText(e)}) – the app uses the iPhone voice` })
     return undefined
   }
 }
@@ -869,6 +871,7 @@ function handleFile({ url }: Ctx): Response {
   if (!RX.FILE_NAME.test(name) || name.includes('..')) return fail(C.HTTP_BAD_REQUEST, 'Invalid file name')
   const path = join(OUTBOX_DIR, name)
   if (!existsSync(path)) return fail(C.HTTP_NOT_FOUND, 'File not found')
+  if (name.startsWith('tts-')) logActivity({ direction: 'out', source: 'audio', text: `🔊 voice audio downloaded by the app (${name})` })
   return new Response(readFileSync(path), { headers: secHeaders({ 'Content-Type': MIME[extname(name).toLowerCase()] ?? DEFAULT_MIME }) })
 }
 

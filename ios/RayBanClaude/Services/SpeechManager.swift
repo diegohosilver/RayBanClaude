@@ -125,6 +125,8 @@ final class SpeechManager: NSObject, ObservableObject {
     var onWakeWord: (() -> Void)?
     /// Speech output finished naturally (not on cancellation)
     var onSpeechFinished: (() -> Void)?
+    /// Short diagnostic note when the PC's voice audio could not be used (shown in the transcript)
+    var onVoiceNote: ((String) -> Void)?
     /// Command listening ended without a command (error, timeout, nothing said)
     var onListeningStopped: ((String?) -> Void)?
 
@@ -448,6 +450,7 @@ final class SpeechManager: NSObject, ObservableObject {
                 AudioDataPlayer.shared.play(data: data) { [weak self] in self?.finishSpeaking() }
             } catch {
                 print("[Speech] Audio from the PC could not be played (\(error.localizedDescription)) – iPhone voice")
+                onVoiceNote?("Voice audio from the PC failed (\(error.localizedDescription)) – using the iPhone voice")
                 guard isSpeaking else { return }
                 speakWithApple(fallbackText)
             }
