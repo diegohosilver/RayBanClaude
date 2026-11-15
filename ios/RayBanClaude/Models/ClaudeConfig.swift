@@ -66,7 +66,7 @@ struct ClaudeConfig: Codable, Equatable {
     static let supportedLanguages: [(code: String, name: String)] = [
         ("de-DE", "Deutsch"), ("de-AT", "Deutsch (Österreich)"), ("de-CH", "Deutsch (Schweiz)"),
         ("en-US", "English (US)"), ("en-GB", "English (UK)"), ("fr-FR", "French"),
-        ("es-ES", "Spanish"), ("it-IT", "Italian"), ("tr-TR", "Turkish"), ("pl-PL", "Polish"),
+        ("es-MX", "Spanish (Mexico)"), ("es-US", "Spanish (US)"), ("es-ES", "Spanish (Spain)"),("it-IT", "Italian"), ("tr-TR", "Turkish"), ("pl-PL", "Polish"),
     ]
 
     static var defaultLanguage: String {

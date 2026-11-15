@@ -16,15 +16,16 @@ enum WakeWord {
     static let phrases: [[String]] = [
         ["hey", "claude"], ["hey", "cloud"], ["hey", "claud"], ["hey", "klaud"], ["hey", "clod"], ["hey", "klod"],
         ["hey", "claudi"], ["hey", "klaudi"],
+        ["oye", "claude"], ["oye", "claud"], ["oye", "clod"], ["oye", "claudi"], ["ey", "claude"], ["ei", "claude"], ["hola", "claude"],
         ["hi", "claude"], ["hallo", "claude"], ["hello", "claude"], ["ok", "claude"], ["okay", "claude"], ["he", "claude"], ["hei", "claude"],
         ["claudi"], ["klaudi"], ["claudie"], ["klaudie"], ["clodi"], ["glaudi"],
     ]
 
     /// Helps the speech recognizer spell these words correctly
-    static let contextualStrings = ["Hey Claude", "Claude", "Claudi"]
+    static let contextualStrings = ["Hey Claude", "Oye Claude", "Claude", "Claudi"]
 
     /// Display text in the app
-    static let displayName = "“Hey Claude” or “Claudi”"
+    static let displayName = "“Hey Claude”, “Oye Claude” or “Claudi”"
 
     static func normalize(_ word: String) -> String {
         word.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US")).lowercased()

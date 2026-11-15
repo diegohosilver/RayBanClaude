@@ -864,8 +864,8 @@ final class SessionViewModel: ObservableObject {
         }
     }
 
-    private static let yesWords = ["ja", "jawohl", "jo", "erlauben", "erlaube", "okay", "ok", "klar", "mach", "yes", "gerne", "anrufen", "senden", "los", "yeah", "yep", "sure", "allow", "approve", "go", "call", "send", "please"]
-    private static let noWords = ["nein", "nö", "ne", "nicht", "ablehnen", "lehne", "stopp", "stop", "no", "abbrechen", "nope", "deny", "reject", "cancel", "never"]
+    private static let yesWords = ["ja", "jawohl", "jo", "erlauben", "erlaube", "okay", "ok", "klar", "mach", "yes", "gerne", "anrufen", "senden", "los", "yeah", "yep", "sure", "allow", "approve", "go", "call", "send", "please", "sí", "si", "dale", "claro", "listo", "permitir", "permito", "aprobar", "llamar", "enviar", "manda", "mandá", "vale", "adelante", "bueno"]
+    private static let noWords = ["nein", "nö", "ne", "nicht", "ablehnen", "lehne", "stopp", "stop", "no", "abbrechen", "nope", "deny", "reject", "cancel", "never", "nop", "nunca", "cancelar", "cancela", "cancelá", "rechazar", "rechaza", "detente", "basta"]
 
     /// Read "yes"/"no" from a spoken answer (nil = unclear)
     static func interpretYesNo(_ text: String) -> Bool? {
