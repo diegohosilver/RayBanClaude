@@ -13,21 +13,21 @@ import { c } from "./console-theme.js";
 import type { ToolPolicy } from "./tool-policy.js";
 import type { DiscoveredTool, MCPServerConfig, Tool } from "./types.js";
 
-// ── MCP-Manager ─────────────────────────────────────────────────────
-// Verbindet sich mit MCP-Servern (lokal per stdio oder entfernt per
-// StreamableHTTP/SSE) und stellt deren Werkzeuge Claude zur Verfügung.
+// ── MCP manager ─────────────────────────────────────────────────────
+// Connects to MCP servers (local via stdio or remote via
+// StreamableHTTP/SSE) and makes their tools available to Claude.
 //
-// Konfigurationsquelle:
-//   - MCP_CONFIG_PATH gesetzt → ausschließlich diese Datei
-//   - sonst die Claude-Desktop-Konfiguration des Betriebssystems
+// Configuration source:
+//   - MCP_CONFIG_PATH set → only this file
+//   - otherwise the operating system's Claude Desktop configuration
 
 const CLIENT_INFO = { name: "raybanclaude-gateway", version: "1.1.0" } as const;
 const DESKTOP_CONFIG_FILE = "claude_desktop_config.json";
 const ALLOWED_URL_PROTOCOLS: ReadonlySet<string> = new Set(["http:", "https:"]);
 const MSIX_PACKAGE_PREFIX = "Claude_";
 
-// Gültige Werkzeugnamen der Claude API: 1–64 Zeichen aus a–z, A–Z, 0–9, "_" und "-".
-// Akzeptiert "read_file", lehnt "server.read file" ab.
+// Valid tool names of the Claude API: 1-64 characters from a-z, A-Z, 0-9, "_" and "-".
+// Accepts "read_file", rejects "server.read file".
 // https://regex101.com/?flavor=javascript&regex=%5E%5Ba-zA-Z0-9_-%5D%7B1%2C64%7D%24&flags=gm&testString=read_file%0Aserver.read%20file
 const TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 
@@ -46,9 +46,9 @@ export interface ServerStatus {
   readonly type: ServerType;
 }
 
-// ── Konfiguration ──
+// ── Configuration ──
 
-/** Mögliche Pfade der Claude-Desktop-Konfiguration je nach Betriebssystem. */
+/** Possible paths of the Claude Desktop configuration depending on the operating system. */
 function desktopConfigCandidates(): string[] {
   const home = os.homedir();
   const byPlatform: Partial<Record<NodeJS.Platform, () => string[]>> = {
@@ -57,7 +57,7 @@ function desktopConfigCandidates(): string[] {
       const appData = process.env.APPDATA ?? path.join(home, "AppData", "Roaming");
       const localAppData = process.env.LOCALAPPDATA ?? path.join(home, "AppData", "Local");
       const packagesDir = path.join(localAppData, "Packages");
-      // Claude aus dem Microsoft Store (MSIX) legt seine Daten virtualisiert ab
+      // Claude from the Microsoft Store (MSIX) stores its data virtualized
       const msixConfigs = safeReadDir(packagesDir)
         .filter((entry) => entry.startsWith(MSIX_PACKAGE_PREFIX))
         .map((entry) =>
@@ -76,7 +76,7 @@ function safeReadDir(dir: string): string[] {
   try {
     return fs.readdirSync(dir);
   } catch {
-    // Ordner existiert nicht (z. B. keine Store-Installation) – kein Fehler
+    // Folder does not exist (e.g. no Store installation) - not an error
     return [];
   }
 }
@@ -93,33 +93,33 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string");
 }
 
-/** Gibt eine URL ohne Query/Fragment fürs Log aus (dort stehen oft Tokens). */
+/** Returns a URL without query/fragment for the log (tokens are often found there). */
 function loggableUrl(url: URL): string {
   return `${url.origin}${url.pathname}`;
 }
 
-/** Prüft einen Servereintrag aus der Konfigurationsdatei (Whitelist der Felder). */
+/** Validates a server entry from the configuration file (whitelist of fields). */
 function parseServerConfig(name: string, raw: unknown): MCPServerConfig | null {
   const reject = (reason: string): null => {
-    console.warn(c.label("[MCP]") + c.warn(` Server „${name}“ übersprungen: ${reason}`));
+    console.warn(c.label("[MCP]") + c.warn(` Server "${name}" skipped: ${reason}`));
     return null;
   };
-  if (!isRecord(raw)) return reject("Eintrag ist kein Objekt");
-  if (raw.env !== undefined && !isStringRecord(raw.env)) return reject("„env“ muss Strings enthalten");
-  if (raw.headers !== undefined && !isStringRecord(raw.headers)) return reject("„headers“ muss Strings enthalten");
-  if (raw.args !== undefined && !isStringArray(raw.args)) return reject("„args“ muss ein String-Array sein");
+  if (!isRecord(raw)) return reject("entry is not an object");
+  if (raw.env !== undefined && !isStringRecord(raw.env)) return reject("'env' must contain strings");
+  if (raw.headers !== undefined && !isStringRecord(raw.headers)) return reject("'headers' must contain strings");
+  if (raw.args !== undefined && !isStringArray(raw.args)) return reject("'args' must be a string array");
 
   if (typeof raw.url === "string" && raw.url) {
     const parsed = URL.canParse(raw.url) ? new URL(raw.url) : null;
     if (!parsed || !ALLOWED_URL_PROTOCOLS.has(parsed.protocol)) {
-      return reject("„url“ muss eine http(s)-URL sein");
+      return reject("'url' must be an http(s) URL");
     }
     return { url: raw.url, headers: raw.headers };
   }
   if (typeof raw.command === "string" && raw.command.trim()) {
     return { command: raw.command, args: raw.args, env: raw.env };
   }
-  return reject("weder „command“ noch „url“ angegeben");
+  return reject("neither 'command' nor 'url' specified");
 }
 
 async function readConfigFile(filePath: string): Promise<Record<string, MCPServerConfig>> {
@@ -133,7 +133,7 @@ async function readConfigFile(filePath: string): Promise<Record<string, MCPServe
   );
 }
 
-// ── Werkzeug-Ergebnisse ──
+// ── Tool results ──
 
 export class MCPToolError extends Error {
   constructor(message: string) {
@@ -144,11 +144,11 @@ export class MCPToolError extends Error {
 
 export class MCPManager {
   private readonly servers = new Map<string, ConnectedServer>();
-  private readonly toolToServer = new Map<string, string>(); // Werkzeugname → Servername
+  private readonly toolToServer = new Map<string, string>(); // tool name → server name
 
   /**
-   * @param policy Erlaubt-Liste – nur freigegebene Werkzeuge erreichen Claude
-   * @param reservedToolNames Namen, die lokal belegt sind (z. B. "skill_laden")
+   * @param policy Allowlist - only approved tools reach Claude
+   * @param reservedToolNames Names that are reserved locally (e.g. "skill_laden")
    */
   constructor(
     private readonly policy: ToolPolicy,
@@ -160,24 +160,24 @@ export class MCPManager {
     const entries = Object.entries(config);
 
     if (!entries.length) {
-      console.log(c.label("[MCP]") + c.dim(" Keine MCP-Server konfiguriert"));
+      console.log(c.label("[MCP]") + c.dim(" No MCP servers configured"));
       return;
     }
 
-    console.log(c.label("[MCP]") + ` Verbinde mit ${entries.length} Server(n)...`);
+    console.log(c.label("[MCP]") + ` Connecting to ${entries.length} server(s)...`);
 
     const results = await Promise.allSettled(
       entries.map(([name, cfg]) => this.connectServer(name, cfg))
     );
 
-    // In Konfigurationsreihenfolge registrieren → deterministische Werkzeugliste
+    // Register in configuration order → deterministic tool list
     results.forEach((result, index) => {
       const name = entries[index][0];
       if (result.status === "fulfilled") {
         this.register(result.value);
       } else {
         console.error(
-          c.label("[MCP]") + c.error(` Verbindung zu „${name}“ fehlgeschlagen: `),
+          c.label("[MCP]") + c.error(` Connection to "${name}" failed: `),
           result.reason
         );
       }
@@ -186,7 +186,7 @@ export class MCPManager {
     console.log(
       c.label("[MCP]") +
         c.success(
-          ` ${this.servers.size}/${entries.length} Server verbunden, ${this.toolToServer.size} Werkzeug(e) verfügbar`
+          ` ${this.servers.size}/${entries.length} server(s) connected, ${this.toolToServer.size} tool(s) available`
         )
     );
   }
@@ -198,18 +198,18 @@ export class MCPManager {
 
     if (!found) {
       const hint = explicitPath
-        ? ` MCP_CONFIG_PATH zeigt auf keine vorhandene Datei: ${explicitPath}`
-        : " Keine Claude-Desktop-Konfiguration gefunden";
+        ? ` MCP_CONFIG_PATH does not point to an existing file: ${explicitPath}`
+        : " No Claude Desktop configuration found";
       console.log(c.label("[MCP]") + c.dim(hint));
       return {};
     }
 
     try {
       const servers = await readConfigFile(found);
-      console.log(c.label("[MCP]") + ` Konfiguration geladen: ${found}`);
+      console.log(c.label("[MCP]") + ` Configuration loaded: ${found}`);
       return servers;
     } catch (err) {
-      console.error(c.label("[MCP]") + c.error(` Konfiguration nicht lesbar: ${found}`), err);
+      console.error(c.label("[MCP]") + c.error(` Configuration not readable: ${found}`), err);
       return {};
     }
   }
@@ -229,24 +229,24 @@ export class MCPManager {
       readOnly: tool.annotations?.readOnlyHint === true,
     }));
 
-    const typeLabel = isRemote ? c.cyan("[entfernt]") : c.dim("[lokal]");
+    const typeLabel = isRemote ? c.cyan("[remote]") : c.dim("[local]");
     console.log(
       c.label("[MCP]") +
-        ` „${name}“ ${typeLabel} verbunden – ${tools.length} Werkzeug(e): ${tools.map((t) => t.name).join(", ")}`
+        ` "${name}" ${typeLabel} connected - ${tools.length} tool(s): ${tools.map((t) => t.name).join(", ")}`
     );
     return { name, client, tools, type: isRemote ? "remote" : "stdio" };
   }
 
   /**
-   * Übernimmt die Werkzeuge eines Servers. Ungültige Namen, nicht freigegebene
-   * Werkzeuge (Erlaubt-Liste) und Namenskollisionen werden gemeldet und ausgelassen.
+   * Registers the tools of a server. Invalid names, unapproved
+   * tools (allowlist) and name collisions are reported and skipped.
    */
   private register(server: ConnectedServer): void {
     const blocked = server.tools.filter((tool) => !this.policy.allows(tool)).map((tool) => tool.name);
     if (blocked.length) {
       console.log(
         c.label("[MCP]") +
-          c.dim(` „${server.name}“: ${blocked.length} Werkzeug(e) gesperrt (${blocked.join(", ")}) – freischalten mit MCP_TOOL_ALLOWLIST`)
+          c.dim(` "${server.name}": ${blocked.length} tool(s) blocked (${blocked.join(", ")}) - enable with MCP_TOOL_ALLOWLIST`)
       );
     }
     const accepted = server.tools.filter((tool) => {
@@ -254,16 +254,16 @@ export class MCPManager {
       if (!TOOL_NAME_PATTERN.test(tool.name)) {
         console.warn(
           c.label("[MCP]") +
-            c.warn(` Werkzeug „${tool.name}“ von „${server.name}“ hat einen ungültigen Namen – ignoriert.`)
+            c.warn(` Tool "${tool.name}" from "${server.name}" has an invalid name - ignored.`)
         );
         return false;
       }
-      const owner = this.reservedToolNames.has(tool.name) ? "Gateway (lokal)" : this.toolToServer.get(tool.name);
+      const owner = this.reservedToolNames.has(tool.name) ? "Gateway (local)" : this.toolToServer.get(tool.name);
       if (owner) {
         console.warn(
           c.label("[MCP]") +
             c.warn(
-              ` Namenskollision: Werkzeug „${tool.name}“ von „${server.name}“ ist bereits durch „${owner}“ belegt – wird ignoriert.`
+              ` Name collision: tool "${tool.name}" from "${server.name}" is already taken by "${owner}" - ignored.`
             )
         );
         return false;
@@ -278,21 +278,21 @@ export class MCPManager {
     const url = new URL(config.url ?? "");
     const requestInit = { headers: { ...(config.headers ?? {}) } };
 
-    // Zuerst StreamableHTTP (neueres Protokoll), dann SSE als Rückfall
+    // StreamableHTTP first (newer protocol), then SSE as fallback
     try {
-      console.log(c.label("[MCP]") + c.dim(` „${name}“ versucht StreamableHTTP → ${loggableUrl(url)}`));
+      console.log(c.label("[MCP]") + c.dim(` "${name}" trying StreamableHTTP → ${loggableUrl(url)}`));
       const client = new Client(CLIENT_INFO, { capabilities: {} });
       await client.connect(new StreamableHTTPClientTransport(url, { requestInit }));
-      console.log(c.label("[MCP]") + c.success(` „${name}“ über StreamableHTTP verbunden`));
+      console.log(c.label("[MCP]") + c.success(` "${name}" connected via StreamableHTTP`));
       return client;
     } catch (httpErr) {
       console.log(
-        c.label("[MCP]") + c.dim(` „${name}“ StreamableHTTP fehlgeschlagen, versuche SSE...`),
+        c.label("[MCP]") + c.dim(` "${name}" StreamableHTTP failed, trying SSE...`),
         httpErr instanceof Error ? httpErr.message : httpErr
       );
       const client = new Client(CLIENT_INFO, { capabilities: {} });
       await client.connect(new SSEClientTransport(url, { requestInit }));
-      console.log(c.label("[MCP]") + c.success(` „${name}“ über SSE verbunden`));
+      console.log(c.label("[MCP]") + c.success(` "${name}" connected via SSE`));
       return client;
     }
   }
@@ -302,33 +302,33 @@ export class MCPManager {
     const transport = new StdioClientTransport({
       command: config.command ?? "",
       args: config.args,
-      // Nur die sichere Standardumgebung + explizit konfigurierte Variablen –
-      // ANTHROPIC_API_KEY und GATEWAY_API_KEY dürfen nicht an fremde Prozesse gehen.
+      // Only the safe default environment + explicitly configured variables -
+      // ANTHROPIC_API_KEY and GATEWAY_API_KEY must not go to foreign processes.
       env: { ...getDefaultEnvironment(), ...(config.env ?? {}) },
     });
     await client.connect(transport);
     return client;
   }
 
-  /** Ruft ein MCP-Werkzeug auf. Fehler werden als MCPToolError geworfen. */
+  /** Calls an MCP tool. Errors are thrown as MCPToolError. */
   async invokeTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
-    // Nur registrierte (also freigegebene) Werkzeuge sind aufrufbar
+    // Only registered (i.e. approved) tools can be called
     const serverName = this.toolToServer.get(toolName);
     const server = serverName ? this.servers.get(serverName) : undefined;
     if (!serverName || !server) {
-      throw new MCPToolError(`Unbekanntes oder nicht freigegebenes Werkzeug: ${toolName}`);
+      throw new MCPToolError(`Unknown or unapproved tool: ${toolName}`);
     }
 
-    console.log(c.label("[MCP]") + ` Rufe ${c.value(toolName)} auf „${serverName}“ auf...`);
+    console.log(c.label("[MCP]") + ` Calling ${c.value(toolName)} on "${serverName}"...`);
     return server.client.callTool({ name: toolName, arguments: args });
   }
 
-  /** Werkzeugdefinitionen im Format der Claude API (ohne Duplikate). */
+  /** Tool definitions in Claude API format (without duplicates). */
   getToolsForClaude(): Tool[] {
     return this.getAllDiscoveredTools().map((tool) => ({
       name: tool.name,
       description: tool.description ?? "",
-      // MCP garantiert ein JSON-Schema vom Typ "object" – entspricht input_schema
+      // MCP guarantees a JSON schema of type "object" - matches input_schema
       input_schema: tool.inputSchema as Tool["input_schema"],
     }));
   }
@@ -364,15 +364,15 @@ export class MCPManager {
   }
 
   async shutdown(): Promise<void> {
-    console.log(c.label("[MCP]") + " Trenne alle Server...");
+    console.log(c.label("[MCP]") + " Disconnecting all servers...");
     const servers = [...this.servers.values()];
     const results = await Promise.allSettled(servers.map((server) => server.client.close()));
     results.forEach((result, index) => {
       const name = servers[index].name;
       if (result.status === "fulfilled") {
-        console.log(c.label("[MCP]") + c.dim(` „${name}“ getrennt`));
+        console.log(c.label("[MCP]") + c.dim(` "${name}" disconnected`));
       } else {
-        console.error(c.label("[MCP]") + c.error(` Fehler beim Trennen von „${name}“:`), result.reason);
+        console.error(c.label("[MCP]") + c.error(` Error disconnecting "${name}":`), result.reason);
       }
     });
     this.servers.clear();

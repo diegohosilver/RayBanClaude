@@ -1,149 +1,149 @@
-# Architektur
+# Architecture
 
-## Überblick
+## Overview
 
 ```
-┌──────────────────┐  Bluetooth   ┌──────────────────────────┐   WLAN (Token)   ┌──────────────────────────────┐
-│ Ray-Ban Meta Gen2│ ───────────▶ │ iPhone-App (SwiftUI)      │ ───────────────▶ │ PC: Channel-Server (Bun)      │
-│ Kamera · Mikro · │ ◀─────────── │ • Meta DAT SDK 1.0.1      │ ◀─────────────── │ • HTTP + WebSocket :18790     │
-│ Lautsprecher     │   HFP-Audio  │ • Apple-Spracherkennung   │  Antwort, Audio, │ • Dashboard + QR-Kopplung     │
-└──────────────────┘              │ • iPhone-Stimme/ElevenLabs│  Freigaben       │ • MCP-Channel (stdio) ───────┐│
+┌──────────────────┐  Bluetooth   ┌──────────────────────────┐   Wi-Fi (token)  ┌──────────────────────────────┐
+│ Ray-Ban Meta Gen2│ ───────────▶ │ iPhone app (SwiftUI)      │ ───────────────▶ │ PC: channel server (Bun)      │
+│ Camera · mic ·   │ ◀─────────── │ • Meta DAT SDK 1.0.1      │ ◀─────────────── │ • HTTP + WebSocket :18790     │
+│ speakers         │   HFP audio  │ • Apple speech recognition│  Reply, audio,   │ • Dashboard + QR pairing      │
+└──────────────────┘              │ • iPhone voice/ElevenLabs │  approvals       │ • MCP channel (stdio) ───────┐│
                                   └──────────────────────────┘                  └──────────────────────────────┘│
                                                                                   Claude Code ◀──────────────────┘
-                                                                                  (alle MCP-Tools & Skills)
+                                                                                  (all MCP tools & skills)
 ```
 
-## Nachrichtenfluss (Channel-Modus)
+## Message flow (channel mode)
 
-1. Die App erkennt Sprache auf dem iPhone, nimmt das aktuelle Kamerabild (Brille oder iPhone)
-   und sendet beides per WebSocket (`type: message`) – große Bilder per `POST /upload`.
-2. Der Channel-Server prüft Token, Text und Bild (Magic Bytes), speichert das Bild in
-   `~/.claude/channels/raybanclaude/inbox/` und schickt `notifications/claude/channel` an Claude Code.
-   Den Modus-Prompt sendet er nur beim Moduswechsel (spart Tokens).
-3. Claude liest das Bild (`file_path`) und antwortet über das Tool `reply`.
-4. Der Server erzeugt optional ElevenLabs-Audio und schickt `type: reply` an die App, die es vorliest
-   (sonst kostenlose iPhone-Stimme) und danach wieder zuhört.
+1. The app recognizes speech on the iPhone, grabs the current camera image (glasses or iPhone)
+   and sends both over WebSocket (`type: message`) – large images via `POST /upload`.
+2. The channel server checks token, text and image (magic bytes), stores the image in
+   `~/.claude/channels/raybanclaude/inbox/` and sends `notifications/claude/channel` to Claude Code.
+   It sends the mode prompt only when the mode changes (saves tokens).
+3. Claude reads the image (`file_path`) and answers via the `reply` tool.
+4. The server optionally generates ElevenLabs audio and sends `type: reply` to the app, which reads it aloud
+   (otherwise with the free iPhone voice) and then listens again.
 
-Weitere Nachrichtentypen: `ack` (zugestellt), `edit` (Korrektur), `capture_request`
-(Claude fordert ein Foto an), `permission_request`/`permission_resolved` (Tool-Freigabe
-am Handy), `phone_action`/`action_result` (Timer, Anruf … auf dem iPhone),
-`memory_sync`/`memory` (Gedächtnis), `error`.
+Other message types: `ack` (delivered), `edit` (correction), `capture_request`
+(Claude requests a photo), `permission_request`/`permission_resolved` (tool approval
+on the phone), `phone_action`/`action_result` (timer, call … on the iPhone),
+`memory_sync`/`memory` (memory), `error`.
 
-## Unterwegs: zwei Adressen, ein PC
+## On the go: two addresses, one PC
 
-Der Kopplungs-Link enthält neben der Heim-Adresse optional `remote` – die Tailscale-Adresse des PCs
-(100.64.0.0/10, erkannt am Adapter „Tailscale“). Die App (`ClaudeBridge`) probiert die Adressen der Reihe nach:
+Besides the home address, the pairing link optionally contains `remote` – the PC's Tailscale address
+(100.64.0.0/10, detected from the "Tailscale" adapter). The app (`ClaudeBridge`) tries the addresses in order:
 
-| iPhone-Netz | Reihenfolge |
+| iPhone network | Order |
 |---|---|
-| WLAN | Heim-Adresse → Tailscale |
-| nur mobile Daten | Tailscale |
+| Wi-Fi | home address → Tailscale |
+| mobile data only | Tailscale |
 
-Ein Netzwechsel (`NWPathMonitor`) oder ein fehlgeschlagener Ping startet die Verbindung sofort neu.
-Ist der PC unter keiner Adresse erreichbar und ein API-Key hinterlegt, fragt die App Claude direkt.
-Unterwegs läuft damit weiterhin alles über Claude Code und das Claude-Abo des Nutzers.
+A network change (`NWPathMonitor`) or a failed ping restarts the connection immediately.
+If the PC cannot be reached at any address and an API key is stored, the app asks Claude directly.
+On the go, everything therefore still runs through Claude Code and the user's Claude subscription.
 
-## Kamera nur auf Zuruf (wie Meta AI)
+## Camera only on request (like Meta AI)
 
-- `VisionIntent` entscheidet anhand der Frage, ob ein Bild nötig ist („Was ist das?“, „Lies vor“, „Mach ein Foto“).
-  Sonst geht die Frage ohne Bild an Claude; braucht Claude doch eins, ruft es `request_photo`/`take_photo`.
-- `RayBanManager` ist nur „bereit“: Mit Gesten bleibt die Geräte-Sitzung offen, erst für ein Foto kommt die
-  Kamera dazu: `addCamera` → Stream (`hvc1`, läuft laut Meta auch im Hintergrund) → `capturePhoto`; nach 15 s ohne
-  weiteres Foto `camera.stop()`. Eine gestoppte Kamera ist ungültig – jedes Foto bekommt ein frisches `addCamera`.
-  Startet die Kamera auf der laufenden Sitzung nicht neu (Meta-Issue #260), baut die App einmal die ganze Sitzung neu
-  auf (mind. 2 s zwischen Sitzungen). Gesten aus (Standard) → Sitzung nur fürs Foto, danach wird alles freigegeben.
-  Schon während der Nutzer spricht, weckt eine erkannte Bild-Frage die Kamera.
-- Brille zuerst: `AudioSessionManager` wählt das Bluetooth-Mikrofon der Ray-Ban Meta vor jedem anderen Headset;
-  kann die Brille kein Foto machen, springt bei offener App die iPhone-Kamera ein.
+- `VisionIntent` decides from the question whether an image is needed ("What is this?", "Read it out", "Take a photo").
+  Otherwise the question goes to Claude without an image; if Claude needs one after all, it calls `request_photo`/`take_photo`.
+- `RayBanManager` is only "ready": with gestures the device session stays open, and the camera is only added
+  for a photo: `addCamera` → stream (`hvc1`, according to Meta also runs in the background) → `capturePhoto`; after 15 s without
+  another photo `camera.stop()`. A stopped camera is invalid – every photo gets a fresh `addCamera`.
+  If the camera does not restart on the running session (Meta issue #260), the app rebuilds the whole session once
+  (at least 2 s between sessions). Gestures off (default) → session only for the photo, then everything is released.
+  Even while the user is still speaking, a recognized image question wakes the camera.
+- Glasses first: `AudioSessionManager` selects the Ray-Ban Meta's Bluetooth microphone ahead of any other headset;
+  if the glasses cannot take a photo, the iPhone camera steps in while the app is open.
 
-## Gesten der Brille (experimentell, auf echter Brille noch nicht getestet)
+## Glasses gestures (experimental, not yet tested on real glasses)
 
-Über Metas Modul `MWDATInputs` (DAT 1.0, nur Entwicklermodus/Beta-Channel, keine Laufzeit-Freigabe):
+Via Meta's `MWDATInputs` module (DAT 1.0, developer mode/beta channel only, no runtime permission):
 
-| Geste | Ereignis | App |
+| Gesture | Event | App |
 |---|---|---|
-| Doppeltipp aufs Touchpad | `.select` | `SessionViewModel.startListening` – sofort zuhören, 7 s Zeit für die Frage |
-| Capture-Taste kurz | `.capture(.shortPress)` | Kamera wecken, `sendText("Was siehst du?")` → `VisionIntent` → Foto |
-| Aktionstaste (Oakley Vanguard) | `.button(.action)` | wie Doppeltipp |
-| Zurück | `.back` | Antwort/Zuhören abbrechen (liefern echte Brillen laut Meta noch nicht) |
-| Wischen | `.nav` | ohne Aktion (nur geloggt) |
-| Einmal tippen / tippen und halten | – | bleibt beim System: Sitzung pausieren bzw. beenden |
+| Double-tap on the touchpad | `.select` | `SessionViewModel.startListening` – listen right away, 7 s for the question |
+| Capture button, short press | `.capture(.shortPress)` | Wake the camera, `sendText("What do you see?")` → `VisionIntent` → photo |
+| Action button (Oakley Vanguard) | `.button(.action)` | same as double-tap |
+| Back | `.back` | Cancel answer/listening (real glasses do not deliver it yet, according to Meta) |
+| Swipe | `.nav` | no action (only logged) |
+| Single tap / tap and hold | – | stays with the system: pause or end the session |
 
-- `addInputs(configuration:)` nur an eine **gestartete** Sitzung; Quellen `captouch`, `captureButton`, `actionButton`
-  (nur die Capture-Taste allein lieferte im Meta-Beispiel BirdSpotter nichts), `consumeBack: true`.
-- `sources` ist kein Filter: Die Brille leitet diese Flächen an die App um – Wischen kommt dann als `.nav` statt als
-  Lautstärke.
-- Angehängt wird erst, wenn `session.device.linkState == .connected` ist, plus 0,75 s – zu früh scheitern Inputs
-  einmal still (`deviceDisconnected`).
-- Fällt die Fähigkeit nach `.active` auf `.inactive` zurück (z. B. weil ein Foto über Bluetooth kommt), läuft der
-  Ereignisstrom aus oder meldet sie einen Fehler: `removeInputs()` → `addInputs()`, höchstens 5-mal in Folge.
-  `permissionDenied`/`capabilityUnavailable` → Hinweis in den Einstellungen, kein neuer Versuch.
-- Sitzung von außen beendet (Tippen und halten, Brille aus) → nach 5 s neu aufbauen, höchstens 3-mal in Folge;
-  Bügel zu → warten, bis sie wieder aufgeklappt werden. Im Hintergrund ohne Hosentaschen-Modus wird alles
-  freigegeben, zurück im Vordergrund kommt die Sitzung wieder.
-- Standardmäßig aus, bis sie auf echter Brille getestet sind; einschalten unter *Einstellungen → Ray-Ban Meta →
-  Gesten (experimentell)* (`ClaudeConfig.glassesGestures`).
+- `addInputs(configuration:)` only on a **started** session; sources `captouch`, `captureButton`, `actionButton`
+  (the Capture button alone delivered nothing in Meta's BirdSpotter example), `consumeBack: true`.
+- `sources` is not a filter: the glasses redirect these surfaces to the app – swiping then arrives as `.nav` instead of
+  volume.
+- Attached only once `session.device.linkState == .connected`, plus 0.75 s – too early and inputs fail
+  silently once (`deviceDisconnected`).
+- If the capability falls back from `.active` to `.inactive` (e.g. because a photo arrives over Bluetooth), the
+  event stream ends or it reports an error: `removeInputs()` → `addInputs()`, at most 5 times in a row.
+  `permissionDenied`/`capabilityUnavailable` → hint in Settings, no new attempt.
+- Session ended from outside (tap and hold, glasses off) → rebuild after 5 s, at most 3 times in a row;
+  temples folded → wait until they are unfolded again. In the background without pocket mode everything is
+  released, back in the foreground the session returns.
+- Off by default until tested on real glasses; turn on under *Settings → Ray-Ban Meta →
+  Gestures (experimental)* (`ClaudeConfig.glassesGestures`).
 
-## Hosentaschen-Modus
+## Pocket mode
 
-Die Aufnahme (`AVAudioEngine`) läuft durch, nur die Spracherkennung wechselt (`RecognitionSink`) – so darf iOS die
-App mit Hintergrund-Audio weiterlaufen lassen, auch bei gesperrtem iPhone. Ohne Weckwort wird das Mikrofon ganz
-freigegeben.
+Recording (`AVAudioEngine`) keeps running, only speech recognition switches (`RecognitionSink`) – that way iOS lets the
+app keep running with background audio, even with the iPhone locked. Without a wake word the microphone is released
+entirely.
 
-## Verknüpfung mit der Claude-Desktop-App
+## Link with the Claude desktop app
 
-- Der Channel schreibt den Gesprächsverlauf (`~/.claude/channels/raybanclaude/verlauf/JJJJ-MM-TT.md`, 30 Tage) und
-  eine Kopie der Merkliste (`gedaechtnis.json`).
-- `channel/bridge.ts` ist ein eigener MCP-Server (stdio) für die Claude-Desktop-App mit `brille_verlauf`,
-  `brille_gedaechtnis` und `brille_merken`. Vorgemerkte Fakten (`gedaechtnis-neu.json`) übernimmt der Channel, sobald
-  das iPhone verbunden ist, und schickt sie als `memory`/`add` an die App.
-- `channel/link-desktop.ts` trägt die Brücke in `claude_desktop_config.json` ein (normale und Store-Version, mit
-  Sicherungskopie); `--remove` trägt sie wieder aus.
-- `start.ps1` startet Claude Code mit `--continue`, wenn es in diesem Ordner schon eine Sitzung gibt.
+- The channel writes the conversation history (`~/.claude/channels/raybanclaude/verlauf/JJJJ-MM-TT.md`, 30 days) and
+  a copy of the memory list (`gedaechtnis.json`).
+- `channel/bridge.ts` is a separate MCP server (stdio) for the Claude desktop app with `brille_verlauf`,
+  `brille_gedaechtnis` and `brille_merken`. Pending facts (`gedaechtnis-neu.json`) are picked up by the channel as soon as
+  the iPhone is connected, and sent to the app as `memory`/`add`.
+- `channel/link-desktop.ts` registers the bridge in `claude_desktop_config.json` (regular and Store version, with a
+  backup copy); `--remove` unregisters it again.
+- `start.ps1` starts Claude Code with `--continue` if there is already a session in this folder.
 
-## Gedächtnis
+## Memory
 
-- **Quelle der Wahrheit ist die App** (`MemoryStore`, JSON-Datei mit Datenschutzklasse
-  *complete until first user authentication*). Max. 200 Einträge à 300 Zeichen.
-- **Channel:** Beim Verbinden und nach jeder Änderung schickt die App `memory_sync`. Der Server hält eine
-  Kopie (Arbeitsspeicher + `gedaechtnis.json` für die Claude-App) und stellt sie der *ersten* Nachricht an Claude
-  voran – erneut nur, wenn sie sich geändert hat. Die Tools `remember`/`forget` ändern die Kopie und schicken `memory` (add/remove) an die App.
-- **Direkt:** Die Liste steht in der ersten Nutzernachricht eines Verlaufs (der Systemprompt bleibt gleich →
-  Prompt-Caching), `remember`/`forget` laufen lokal.
-- **Gateway:** Die Liste geht einmal pro Gespräch mit; merken geht dort nur über die App.
-- Einträge sind für Claude ausdrücklich **Fakten, keine Anweisungen**; Text aus Bildern oder Webseiten soll
-  Claude nicht speichern.
+- **The app is the source of truth** (`MemoryStore`, JSON file with data protection class
+  *complete until first user authentication*). Max. 200 entries of 300 characters each.
+- **Channel:** On connecting and after every change the app sends `memory_sync`. The server keeps a
+  copy (RAM + `gedaechtnis.json` for the Claude app) and prepends it to the *first* message to Claude –
+  again only if it has changed. The `remember`/`forget` tools change the copy and send `memory` (add/remove) to the app.
+- **Direct:** The list is in the first user message of a history (the system prompt stays the same →
+  prompt caching), `remember`/`forget` run locally.
+- **Gateway:** The list is sent once per conversation; remembering there only works via the app.
+- Entries are expressly **facts, not instructions** for Claude; Claude should not store text from images or
+  web pages.
 
-## Komponenten
+## Components
 
-| Komponente | Datei(en) | Aufgabe |
+| Component | File(s) | Purpose |
 |---|---|---|
-| Channel-Server | `channel/server.ts` | MCP-Channel, Routen-Tabelle mit Zugriffsstufen (public/local/token/admin), WebSocket |
-| Hilfsmodule | `channel/lib/*.ts` | Konstanten, Regex mit Beispielen, Validierung, LAN-/Tailscale-Erkennung, Handy-Aktionen, Gedächtnis |
-| Dashboard | `channel/dashboard.*` | QR-Kopplung, Aktivität, Stimme; nur `localhost`, strikte CSP |
-| Gateway | `server/src/*.ts` | Alternative ohne Claude Code: Claude-API + MCP-Client + Skills |
-| `RayBanManager` | `ios/…/Services/RayBanManager.swift` | DAT 1.0.1: Registrierung, Dauersitzung, Gesten (Inputs), Kamera pro Foto, Gerätezustand |
-| `CameraManager` | `ios/…/Services/CameraManager.swift` | iPhone-Kamera, JPEG-Drosselung, QR-/Barcodes |
-| `SpeechManager` | `ios/…/Services/SpeechManager.swift` | Spracherkennung (on-device), Sprachausgabe |
-| `ClaudeBridge` | `ios/…/Services/ClaudeBridge.swift` | WebSocket/REST, WLAN → Tailscale, Reconnect mit Backoff, Token-Header |
-| `DirectClaudeClient` | `ios/…/Services/DirectClaudeClient.swift` | Ohne PC: Claude-API direkt, Werkzeug-Schleife, Prompt-Caching |
-| `MemoryStore` | `ios/…/Services/MemoryStore.swift` | Gedächtnis: speichern, abgleichen, Übernahme aus der Claude-App |
-| `SessionViewModel` | `ios/…/ViewModels/SessionViewModel.swift` | Ablaufsteuerung, Timeouts, Kopplung, Freigaben, Gesten der Brille |
+| Channel server | `channel/server.ts` | MCP channel, route table with access levels (public/local/token/admin), WebSocket |
+| Helper modules | `channel/lib/*.ts` | Constants, regexes with examples, validation, LAN/Tailscale detection, phone actions, memory |
+| Dashboard | `channel/dashboard.*` | QR pairing, activity, voice; `localhost` only, strict CSP |
+| Gateway | `server/src/*.ts` | Alternative without Claude Code: Claude API + MCP client + skills |
+| `RayBanManager` | `ios/…/Services/RayBanManager.swift` | DAT 1.0.1: registration, persistent session, gestures (inputs), camera per photo, device state |
+| `CameraManager` | `ios/…/Services/CameraManager.swift` | iPhone camera, JPEG throttling, QR/barcodes |
+| `SpeechManager` | `ios/…/Services/SpeechManager.swift` | Speech recognition (on-device), speech output |
+| `ClaudeBridge` | `ios/…/Services/ClaudeBridge.swift` | WebSocket/REST, Wi-Fi → Tailscale, reconnect with backoff, token header |
+| `DirectClaudeClient` | `ios/…/Services/DirectClaudeClient.swift` | Without PC: Claude API directly, tool loop, prompt caching |
+| `MemoryStore` | `ios/…/Services/MemoryStore.swift` | Memory: store, sync, import from the Claude app |
+| `SessionViewModel` | `ios/…/ViewModels/SessionViewModel.swift` | Flow control, timeouts, pairing, approvals, glasses gestures |
 
-## Zugriffsstufen im Channel-Server
+## Access levels in the channel server
 
-| Stufe | Bedingung | Routen |
+| Level | Condition | Routes |
 |---|---|---|
-| public | keine | `GET /health` (nur „ok“) |
-| local | Loopback-IP + Host/Origin = localhost | Dashboard, `/api/local` (Token, IPs), `/api/pair.svg`, `/api/pair-link` |
-| token | gültiges Bearer-Token | `/ws`, `/upload`, `/message`, `/files/*`, `/api/status`, `/api/activity` |
-| admin | local **und** token | `/api/tts`, `/api/test-message`, `/api/send-imessage` |
+| public | none | `GET /health` ("ok" only) |
+| local | loopback IP + Host/Origin = localhost | Dashboard, `/api/local` (token, IPs), `/api/pair.svg`, `/api/pair-link` |
+| token | valid bearer token | `/ws`, `/upload`, `/message`, `/files/*`, `/api/status`, `/api/activity` |
+| admin | local **and** token | `/api/tts`, `/api/test-message`, `/api/send-imessage` |
 
-## Ray-Ban Meta Gen 2 – Besonderheiten
+## Ray-Ban Meta Gen 2 – specifics
 
-- Stream mit 720p bei 15 fps (sauberere Einzelbilder über Bluetooth als 30 fps).
-- Audio-Session wird **einmal** auf `.playAndRecord` + HFP gestellt und vor `stream.start()`
-  ca. 2 s „gesetzt“ – häufiges Umschalten führt laut Meta bei Gen 2 zu „Device unavailable“.
-- Geschlossene Bügel beenden die Session; beim Aufklappen baut die App sie neu auf (Gerätezustand `hingeState`).
-- Ein Tipp aufs Touchpad pausiert die Session (`DeviceSessionState.paused`), ein weiterer setzt sie fort.
-- Fotos per `stream.capturePhoto(format: .jpeg)` – Video pausiert kurz.
+- Stream at 720p and 15 fps (cleaner still frames over Bluetooth than 30 fps).
+- The audio session is set **once** to `.playAndRecord` + HFP and "settled" for about 2 s before `stream.start()` –
+  frequent switching leads to "Device unavailable" on Gen 2, according to Meta.
+- Closed temples end the session; when unfolded the app rebuilds it (device state `hingeState`).
+- A tap on the touchpad pauses the session (`DeviceSessionState.paused`), another one resumes it.
+- Photos via `stream.capturePhoto(format: .jpeg)` – video pauses briefly.

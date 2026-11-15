@@ -2,8 +2,8 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import type { SkillLoader } from "../skill-loader.js";
 
-// GET  /skills        – geladene Skills (nur mit Token)
-// POST /skills/reload – Skills neu einlesen und Systemprompt aktualisieren
+// GET  /skills        – loaded skills (token required)
+// POST /skills/reload – reload skills and update the system prompt
 
 export function createSkillsRouter(skillLoader: SkillLoader, onReload: () => void): Router {
   const router = Router();
@@ -16,7 +16,7 @@ export function createSkillsRouter(skillLoader: SkillLoader, onReload: () => voi
     skillLoader.reload();
     onReload();
     res.json({
-      message: "Skills neu geladen",
+      message: "Skills reloaded",
       skills: skillLoader.getSkillList(),
       count: skillLoader.count,
     });

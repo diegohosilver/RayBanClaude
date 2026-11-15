@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -12,43 +12,43 @@
   <header class="top">
     <div>
       <h1>RayBan Claude</h1>
-      <p class="sub">Claude sieht, was du siehst – Ray-Ban Meta Gen 2 &amp; iPhone</p>
+      <p class="sub">Claude sees what you see – Ray-Ban Meta Gen 2 &amp; iPhone</p>
     </div>
     <div class="badges">
-      <span class="badge"><span class="dot ok"></span>Server läuft</span>
-      <span class="badge" id="badge-clients"><span class="dot warn"></span>0 Apps</span>
-      <span class="badge" id="badge-voice"><span class="dot"></span>Stimme …</span>
+      <span class="badge"><span class="dot ok"></span>Server running</span>
+      <span class="badge" id="badge-clients"><span class="dot warn"></span>0 apps</span>
+      <span class="badge" id="badge-voice"><span class="dot"></span>Voice …</span>
     </div>
   </header>
 
   <section class="card pair">
-    <h2>1 · Handy koppeln</h2>
+    <h2>1 · Pair your phone</h2>
     <div class="pair-grid">
       <div class="qr-box">
-        <img id="qr" alt="QR-Code zum Koppeln" width="220" height="220">
-        <p class="hint" id="qr-hint">QR-Code wird geladen …</p>
+        <img id="qr" alt="QR code for pairing" width="220" height="220">
+        <p class="hint" id="qr-hint">Loading QR code …</p>
       </div>
       <div>
         <ol class="steps">
-          <li>iPhone ins <b>gleiche WLAN</b> wie diesen PC.</li>
-          <li>Die normale <b>Kamera-App</b> auf den QR-Code richten.</li>
-          <li>„In RayBan Claude öffnen“ tippen und bestätigen – fertig.</li>
+          <li>Put your iPhone on the <b>same Wi-Fi</b> as this PC.</li>
+          <li>Point the regular <b>Camera app</b> at the QR code.</li>
+          <li>Tap “Open in RayBan Claude” and confirm – done.</li>
         </ol>
-        <label class="field">Netzwerk-Adresse dieses PCs
+        <label class="field">Network address of this PC
           <select id="ip-select"></select>
         </label>
-        <p class="hint">Falsche Adresse? Nimm die Adresse deines WLAN-Adapters (meist 192.168.…).</p>
-        <p class="hint" id="remote-hint">🌍 Unterwegs: wird geprüft …</p>
+        <p class="hint">Wrong address? Use the address of your Wi-Fi adapter (usually 192.168.…).</p>
+        <p class="hint" id="remote-hint">🌍 On the go: checking …</p>
         <details class="manual">
-          <summary>Manuell eintragen</summary>
+          <summary>Enter manually</summary>
           <dl>
             <dt>Host</dt><dd><code id="host">…</code></dd>
             <dt>Port</dt><dd><code id="port">…</code></dd>
             <dt>Token</dt><dd><code id="token" class="secret">…</code></dd>
           </dl>
           <div class="row">
-            <button id="btn-reveal" class="btn">Token zeigen</button>
-            <button id="btn-copy" class="btn">Alles kopieren</button>
+            <button id="btn-reveal" class="btn">Show token</button>
+            <button id="btn-copy" class="btn">Copy all</button>
           </div>
         </details>
       </div>
@@ -56,26 +56,26 @@
   </section>
 
   <section class="card">
-    <h2>2 · Claude starten</h2>
-    <p>Im Projektordner von RayBan Claude ausführen (oder einfach <code>start.cmd</code> doppelklicken):</p>
-    <div class="cmd"><code id="cmd-start">claude --dangerously-load-development-channels server:raybanclaude</code><button class="btn" data-copy="cmd-start">Kopieren</button></div>
-    <p class="hint">Kostenlos mit deinem Claude-Abo (Pro/Max) – keine API-Kosten. Freigaben für Tools kannst du direkt auf dem Handy bestätigen.</p>
+    <h2>2 · Start Claude</h2>
+    <p>Run this in the RayBan Claude project folder (or just double-click <code>start.cmd</code>):</p>
+    <div class="cmd"><code id="cmd-start">claude --dangerously-load-development-channels server:raybanclaude</code><button class="btn" data-copy="cmd-start">Copy</button></div>
+    <p class="hint">Free with your Claude subscription (Pro/Max) – no API costs. You can approve tool permissions directly on your phone.</p>
   </section>
 
   <section class="card">
-    <h2>Testnachricht ans Handy</h2>
+    <h2>Test message to your phone</h2>
     <div class="row">
-      <input id="test-text" class="input" maxlength="500" placeholder="z. B. Hallo von meinem PC!">
-      <button id="btn-test" class="btn primary">Senden</button>
+      <input id="test-text" class="input" maxlength="500" placeholder="e.g. Hello from my PC!">
+      <button id="btn-test" class="btn primary">Send</button>
     </div>
     <p class="hint" id="test-status"></p>
   </section>
 
   <section class="card">
-    <h2>Sprachausgabe</h2>
-    <p>Standard ist die <b>kostenlose iPhone-Stimme</b>. Optional klingt ElevenLabs natürlicher (kostenpflichtig, Gratis-Kontingent vorhanden).</p>
+    <h2>Voice output</h2>
+    <p>The default is the <b>free iPhone voice</b>. Optionally, ElevenLabs sounds more natural (paid, free tier available).</p>
     <div class="row">
-      <input id="eleven-key" class="input" type="password" autocomplete="off" placeholder="ElevenLabs-API-Key (optional)">
+      <input id="eleven-key" class="input" type="password" autocomplete="off" placeholder="ElevenLabs API key (optional)">
       <select id="eleven-voice" class="input narrow">
         <option value="XB0fDUnXU5powFXDhCwa">Charlotte</option>
         <option value="21m00Tcm4TlvDq8ikWAM">Rachel</option>
@@ -86,40 +86,40 @@
         <option value="TxGEqnHWrfWFTfGW9XjX">Josh</option>
         <option value="pNInz6obpgDQGcFmaJgB">Adam</option>
       </select>
-      <button id="btn-tts" class="btn">Speichern</button>
-      <button id="btn-tts-off" class="btn">Key entfernen</button>
+      <button id="btn-tts" class="btn">Save</button>
+      <button id="btn-tts-off" class="btn">Remove key</button>
     </div>
     <p class="hint" id="tts-status"></p>
   </section>
 
   <section class="card" id="card-imessage" hidden>
-    <h2>Kopplungsdaten per iMessage</h2>
+    <h2>Send pairing details via iMessage</h2>
     <div class="row">
-      <input id="im-recipient" class="input" placeholder="Telefonnummer oder Apple-ID">
-      <button id="btn-im" class="btn">Senden</button>
+      <input id="im-recipient" class="input" placeholder="Phone number or Apple ID">
+      <button id="btn-im" class="btn">Send</button>
     </div>
     <p class="hint" id="im-status"></p>
   </section>
 
   <section class="card">
-    <h2>Aktivität</h2>
-    <ul id="activity" class="activity"><li class="hint">Noch keine Nachrichten.</li></ul>
+    <h2>Activity</h2>
+    <ul id="activity" class="activity"><li class="hint">No messages yet.</li></ul>
   </section>
 
   <section class="card help">
-    <h2>Hilfe</h2>
+    <h2>Help</h2>
     <ul>
-      <li><b>App verbindet nicht?</b> Handy und PC im selben WLAN? Unter Windows beim ersten Start die Firewall-Frage mit „Zulassen“ (privates Netzwerk) beantworten.</li>
-      <li><b>„Nicht autorisiert“?</b> QR-Code neu scannen – das Token muss übereinstimmen.</li>
-      <li><b>Keine Antwort von Claude?</b> Claude Code muss mit dem Befehl oben laufen; in Claude <code>/mcp</code> prüfen.</li>
-      <li><b>Brille streamt nicht?</b> Meta-AI-App → Brille → Entwicklermodus an, Bügel öffnen, Brille neu starten.</li>
-      <li><b>Port belegt?</b> Andere Claude-Sitzung mit RayBan Claude beenden oder <code>RAYBANCLAUDE_PORT</code> setzen.</li>
+      <li><b>App won't connect?</b> Are phone and PC on the same Wi-Fi? On Windows, answer the firewall prompt on first start with “Allow” (private network).</li>
+      <li><b>“Unauthorized”?</b> Scan the QR code again – the token has to match.</li>
+      <li><b>No answer from Claude?</b> Claude Code has to be running with the command above; check <code>/mcp</code> in Claude.</li>
+      <li><b>Glasses not streaming?</b> Meta AI app → glasses → turn on developer mode, unfold the temples, restart the glasses.</li>
+      <li><b>Port in use?</b> End the other Claude session running RayBan Claude or set <code>RAYBANCLAUDE_PORT</code>.</li>
     </ul>
   </section>
 
   <footer class="foot">
-    RayBan Claude <span id="version"></span> · Open Source (MIT) · Fork von visionclaude<br>
-    Inoffizielles Projekt – nicht verbunden mit Meta, Ray-Ban/EssilorLuxottica oder Anthropic.
+    RayBan Claude <span id="version"></span> · Open source (MIT) · Fork of visionclaude<br>
+    Unofficial project – not affiliated with Meta, Ray-Ban/EssilorLuxottica or Anthropic.
   </footer>
 </main>
 </body>

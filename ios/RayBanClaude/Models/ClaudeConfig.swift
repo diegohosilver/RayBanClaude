@@ -1,21 +1,21 @@
 import Foundation
 
-/// Wie die App mit Claude spricht.
+/// How the app talks to Claude.
 enum ConnectionMode: String, Codable, CaseIterable, Identifiable {
-    /// Claude Code + Channel auf dem PC – kostenlos mit dem Claude-Abo, alle MCP-Tools und Skills
+    /// Claude Code + Channel on the PC – free with the Claude subscription, all MCP tools and skills
     case channel
-    /// Eigenständiger Gateway-Server auf dem PC mit Anthropic-API-Key (kostet pro Nutzung)
+    /// Standalone gateway server on the PC with an Anthropic API key (pay per use)
     case gateway
-    /// Ohne PC: das iPhone fragt die Claude-API direkt (eigener API-Key, kostet pro Frage)
+    /// No PC: the iPhone calls the Claude API directly (your own API key, pay per question)
     case direct
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .channel: return "PC: Claude Code (kostenlos)"
+        case .channel: return "PC: Claude Code (free)"
         case .gateway: return "PC: Gateway (API-Key)"
-        case .direct: return "Ohne PC (API-Key)"
+        case .direct: return "No PC (API key)"
         }
     }
 
@@ -24,56 +24,56 @@ enum ConnectionMode: String, Codable, CaseIterable, Identifiable {
 
 struct ClaudeConfig: Codable, Equatable {
     var gatewayHost: String = ""
-    /// Adresse des PCs für unterwegs (Tailscale) – die App probiert sie, wenn das WLAN zu Hause nicht da ist
+    /// PC address for when you are away (Tailscale) – the app tries it when the home Wi-Fi is not available
     var remoteHost: String = ""
     var gatewayPort: Int = ClaudeConfig.defaultPort
     var connectionMode: ConnectionMode = .channel
     var videoFrameInterval: TimeInterval = 1.0
     var videoJPEGQuality: Double = 0.85
     var speechPauseThreshold: TimeInterval = 1.5
-    var elevenLabsVoiceId: String = "XB0fDUnXU5powFXDhCwa" // Charlotte (mehrsprachig)
-    /// Sprache für Spracherkennung und Stimme, z. B. "de-DE"
+    var elevenLabsVoiceId: String = "XB0fDUnXU5powFXDhCwa" // Charlotte (multilingual)
+    /// Language for speech recognition and voice, e.g. "de-DE"
     var speechLanguage: String = ClaudeConfig.defaultLanguage
-    /// Nach Claudes Antwort automatisch wieder zuhören (freihändig mit der Brille)
+    /// Automatically listen again after Claude's reply (hands-free with the glasses)
     var autoListen: Bool = true
-    /// Weckwort „Hey Claude“ / „Claudi“ – die App wartet freihändig auf dich
+    /// Wake word "Hey Claude" / "Claudi" – the app waits hands-free for you
     var wakeWordEnabled: Bool = true
-    /// Ohne PC: Modell für die direkte Claude-API
+    /// No PC: model for the direct Claude API
     var directModel: String = DirectClaudeClient.defaultModel
-    /// PC nicht erreichbar → automatisch direkt fragen (nur mit API-Key)
+    /// PC unreachable → automatically ask directly (only with an API key)
     var directFallback: Bool = true
-    /// Websuche im Direkt-Modus (Wetter, Öffnungszeiten …; kostet extra pro Suche)
+    /// Web search in direct mode (weather, opening hours …; costs extra per search)
     var webSearchEnabled: Bool = true
-    /// Gedächtnis: Claude merkt sich, was du ihm über dich erzählst (liegt nur auf diesem iPhone)
+    /// Memory: Claude remembers what you tell it about yourself (stored only on this iPhone)
     var memoryEnabled: Bool = true
-    /// Hosentaschen-Modus: auch bei gesperrtem iPhone auf „Hey Claude“ hören (wie Meta AI)
+    /// Pocket mode: listen for "Hey Claude" even when the iPhone is locked (like Meta AI)
     var listenWhenLocked: Bool = true
-    /// Display nicht automatisch sperren, solange die App offen ist (braucht mehr Akku)
+    /// Don't auto-lock the display while the app is open (uses more battery)
     var keepScreenOn: Bool = false
-    /// Gesten der Brille: Doppeltipp = zuhören, Capture-Taste = „Was siehst du?“ (hält die Sitzung offen).
-    /// Standardmäßig aus – experimentell, bis sie auf echter Brille getestet sind.
+    /// Glasses gestures: double tap = listen, capture button = "What do you see?" (keeps the session open).
+    /// Off by default – experimental until tested on real glasses.
     var glassesGestures: Bool = false
 
-    // Geheimnisse liegen im Schlüsselbund, nicht in den UserDefaults
+    // Secrets are stored in the Keychain, not in UserDefaults
     var channelToken: String = ""
     var elevenLabsAPIKey: String = ""
     var anthropicAPIKey: String = ""
 
-    /// Direkt-Modus nutzbar? (API-Key vorhanden)
+    /// Direct mode usable? (API key present)
     var hasDirectKey: Bool { anthropicAPIKey.hasPrefix("sk-ant-") && anthropicAPIKey.count >= 20 }
 
     static let defaultPort = 18790
     static let supportedLanguages: [(code: String, name: String)] = [
         ("de-DE", "Deutsch"), ("de-AT", "Deutsch (Österreich)"), ("de-CH", "Deutsch (Schweiz)"),
-        ("en-US", "Englisch (US)"), ("en-GB", "Englisch (UK)"), ("fr-FR", "Französisch"),
-        ("es-ES", "Spanisch"), ("it-IT", "Italienisch"), ("tr-TR", "Türkisch"), ("pl-PL", "Polnisch"),
+        ("en-US", "English (US)"), ("en-GB", "English (UK)"), ("fr-FR", "French"),
+        ("es-ES", "Spanish"), ("it-IT", "Italian"), ("tr-TR", "Turkish"), ("pl-PL", "Polish"),
     ]
 
     static var defaultLanguage: String {
-        let preferred = Locale.preferredLanguages.first ?? "de-DE"
+        let preferred = Locale.preferredLanguages.first ?? "en-US"
         return supportedLanguages.first { preferred.hasPrefix($0.code) }?.code
             ?? supportedLanguages.first { preferred.hasPrefix(String($0.code.prefix(2))) }?.code
-            ?? "de-DE"
+            ?? "en-US"
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -85,7 +85,7 @@ struct ClaudeConfig: Codable, Equatable {
 
     var isConfigured: Bool { baseURL != nil && !channelToken.isEmpty }
 
-    // MARK: - URLs (nie per Force-Unwrap – ungültige Eingaben dürfen nicht abstürzen)
+    // MARK: - URLs (never force-unwrapped – invalid input must not crash)
 
     private func url(scheme: String, path: String) -> URL? {
         let host = gatewayHost.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -103,7 +103,7 @@ struct ClaudeConfig: Codable, Equatable {
     var chatURL: URL? { url(scheme: "http", path: "/chat") }
     var healthURL: URL? { url(scheme: "http", path: "/health") }
     var uploadURL: URL? { url(scheme: "http", path: "/upload") }
-    /// Endpunkt, der ein gültiges Token verlangt – zum Testen der Kopplung
+    /// Endpoint that requires a valid token – used to test pairing
     var authCheckURL: URL? {
         url(scheme: "http", path: connectionMode == .channel ? "/api/status" : "/health/details")
     }
@@ -113,7 +113,7 @@ struct ClaudeConfig: Codable, Equatable {
         return url(scheme: "http", path: path)
     }
 
-    /// Dieselben Einstellungen, aber mit einer anderen PC-Adresse (WLAN oder Tailscale)
+    /// The same settings, but with a different PC address (Wi-Fi or Tailscale)
     func using(host: String) -> ClaudeConfig {
         guard !host.isEmpty else { return self }
         var copy = self
@@ -121,13 +121,13 @@ struct ClaudeConfig: Codable, Equatable {
         return copy
     }
 
-    /// Ist für unterwegs eine zweite Adresse (Tailscale) hinterlegt?
+    /// Is a second address (Tailscale) stored for when you are away?
     var hasRemoteHost: Bool {
         let remote = remoteHost.trimmingCharacters(in: .whitespacesAndNewlines)
         return !remote.isEmpty && remote != gatewayHost.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // MARK: - Speichern / Laden
+    // MARK: - Saving / Loading
 
     private static let storageKey = "RayBanClaudeConfig"
 

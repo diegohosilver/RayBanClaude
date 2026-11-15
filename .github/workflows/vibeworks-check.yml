@@ -1,14 +1,14 @@
-# Von VibeWorks angelegt: kostenloser Repo-Check ohne KI – Geheimnisse (Gitleaks),
-# Sicherheitslücken (OSV-Scanner), Fehlermuster (Semgrep), je Sprache Bandit, ShellCheck,
-# Hadolint, actionlint und fallow (JS/TS) sowie offene Stellen (TODO/FIXME).
-# Das Ergebnis liegt als Artefakt „vibeworks-check“ bereit, VibeWorks holt es selbst ab.
-# Datei löschen = Check aus.
+# Created by VibeWorks: free repo check without AI – secrets (Gitleaks),
+# vulnerabilities (OSV-Scanner), error patterns (Semgrep), per language Bandit, ShellCheck,
+# Hadolint, actionlint and fallow (JS/TS) as well as open items (TODO/FIXME).
+# The result is available as the artifact “vibeworks-check”; VibeWorks fetches it itself.
+# Delete this file = check off.
 name: VibeWorks Repo-Check
 
 on:
-  # Bei jedem Code-Commit auf dem Hauptzweig und in Pull Requests – reiner
-  # Text (Doku, Lizenz) löst nichts aus. Der Check schreibt nichts zurück,
-  # es kann sich also nichts aufschaukeln.
+  # On every code commit to the main branch and in pull requests – pure
+  # text (docs, license) triggers nothing. The check writes nothing back,
+  # so nothing can escalate.
   push:
     branches: ["main", "master"]
     paths-ignore: ["**/*.md", "docs/**", "LICENSE", ".gitignore"]
@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  # Je Zweig eine Reihe – ein Pull Request bricht den Lauf auf main nicht ab
+  # One queue per branch – a pull request does not cancel the run on main
   group: vibeworks-check-${{ github.ref }}
   cancel-in-progress: true
 
@@ -34,21 +34,21 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-          # Die Prüf-Container sehen das Repository – aber nicht das Token in .git/config
+          # The check containers see the repository – but not the token in .git/config
           persist-credentials: false
 
-      # Ein abgebrochenes Werkzeug darf nicht wie ein sauberer Lauf aussehen (#149):
-      # jeder Schritt schreibt seinen Fehler in .vw-errors.txt, das landet im Bericht.
-      # Images vorab holen, mit zweitem Anlauf: Ein Aussetzer bei der Registry
-      # hat sonst einen ganzen Prüfschritt gekostet (#208).
-      - name: Prüf-Container laden
+      # A tool that was aborted must not look like a clean run (#149):
+      # each step writes its error to .vw-errors.txt, which ends up in the report.
+      # Pull images up front, with a second attempt: a registry hiccup
+      # would otherwise have cost a whole check step (#208).
+      - name: Load check containers
         continue-on-error: true
         run: |
           for image in zricethezav/gitleaks:v8.30.1 ghcr.io/google/osv-scanner:v2.6.0 semgrep/semgrep:1.177.0; do
-            docker pull -q "$image" || { sleep 15; docker pull -q "$image" || echo "Konnte $image nicht laden"; }
+            docker pull -q "$image" || { sleep 15; docker pull -q "$image" || echo "Could not pull $image"; }
           done
 
-      - name: Geheimnisse (Gitleaks)
+      - name: Secrets (Gitleaks)
         id: gitleaks
         continue-on-error: true
         run: >-
@@ -57,31 +57,31 @@ jobs:
           zricethezav/gitleaks:v8.30.1 detect --source /repo --no-banner --redact
           --report-format json --report-path /repo/.vw-gitleaks.json --exit-code 0
 
-      - name: Sicherheitslücken (OSV-Scanner)
+      - name: Vulnerabilities (OSV-Scanner)
         id: osv
         continue-on-error: true
         run: >-
           docker run --rm -v "$PWD:/src" ghcr.io/google/osv-scanner:v2.6.0
           scan source --recursive --format json --output-file /src/.vw-osv.json /src
 
-      - name: Fehlermuster (Semgrep)
+      - name: Error patterns (Semgrep)
         id: semgrep
         continue-on-error: true
         run: >-
           docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.177.0
           semgrep scan --config p/default --json --metrics off --quiet --output /src/.vw-semgrep.json
 
-      - name: Offene Stellen (TODO/FIXME)
+      - name: Open items (TODO/FIXME)
         id: todos
         continue-on-error: true
-        # Nur Kommentare (// # /* * -- <!--) – nicht jedes Wort „TODO“ im Code
+        # Comments only (// # /* * -- <!--) – not every “TODO” word in the code
         run: |
           git grep -n -I -E '(//|#|/\*|\*|--|<!--)[[:space:]]*(TODO|FIXME|HACK|XXX)\b' -- ':!*.lock' ':!package-lock.json' ':!.github/workflows/vibeworks-check.yml' > .vw-todos.txt || true
 
-      - name: Sprachwerkzeuge (Bandit, ShellCheck, Hadolint, actionlint, fallow)
+      - name: Language tools (Bandit, ShellCheck, Hadolint, actionlint, fallow)
         id: languages
         continue-on-error: true
-        # Nur was im Repository vorkommt – je Sprache ein kostenloses Werkzeug
+        # Only what occurs in the repository – one free tool per language
         run: |
           if git ls-files '*.py' | grep -q .; then
             pipx run bandit -r . -q -f json -o .vw-bandit.json --exit-zero || true
@@ -98,12 +98,12 @@ jobs:
           if git ls-files '.github/workflows/*.yml' '.github/workflows/*.yaml' | grep -q .; then
             docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -format '{{json .}}' > .vw-actionlint.json || true
           fi
-          # Dateien, die per <script src> oder <link href> in HTML hängen: Der
-          # Analysator sieht nur JS-Importe und hält sie sonst für ungenutzt (#203).
+          # Files attached to HTML via <script src> or <link href>: the
+          # analyzer only sees JS imports and would otherwise consider them unused (#203).
           git grep -hoE '(src|href)="[^"]+"' -- '*.html' '*.htm' 2>/dev/null | sed -E 's/.*="([^"]+)".*/\1/' | sed -E 's#\?.*##' | sed -E 's#.*/##' | sort -u > .vw-html-refs.txt || true
-          # JavaScript/TypeScript: ungenutzter Code, ungenutzte Abhängigkeiten, Zyklen (fallow, kostenlos).
-          # Feste Version und – falls vorhanden – dieselbe Baseline wie das Projekt selbst,
-          # damit Repo-Check und eigene Prüfung nicht auseinanderlaufen.
+          # JavaScript/TypeScript: unused code, unused dependencies, cycles (fallow, free).
+          # Pinned version and – if present – the same baseline as the project itself,
+          # so the repo check and the project's own check do not drift apart.
           if [ -f package.json ] && git ls-files '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' | grep -q .; then
             if [ -f .fallow-baseline.json ]; then
               npx -y fallow@3.28.0 dead-code --baseline .fallow-baseline.json --format json > .vw-fallow.json 2> /dev/null || true
@@ -112,10 +112,10 @@ jobs:
             fi
           fi
 
-      - name: Zusammenfassen
+      - name: Summarize
         env:
-          # Ergebnis jedes Prüfschritts – „failure“ heißt: das Werkzeug ist
-          # abgebrochen, sein Teil des Berichts fehlt (#149)
+          # Outcome of each check step – “failure” means: the tool
+          # was aborted, its part of the report is missing (#149)
           VW_OUTCOMES: '{"gitleaks": "${{ steps.gitleaks.outcome }}", "osv": "${{ steps.osv.outcome }}", "semgrep": "${{ steps.semgrep.outcome }}", "todos": "${{ steps.todos.outcome }}", "languages": "${{ steps.languages.outcome }}"}'
         run: |
           python3 - <<'PY'
@@ -140,11 +140,11 @@ jobs:
               "toolErrors": [],
           }
 
-          # Abgebrochene Schritte merken – gemeldet wird erst am Ende, wenn
-          # feststeht, ob trotzdem Ergebnisse da sind (#149, #208). Werkzeuge wie
-          # der OSV-Scanner enden mit Fehlercode, wenn sie etwas FINDEN – das ist
-          # kein Abbruch und darf nicht als "Ergebnisse fehlen" erscheinen.
-          STEP_LABEL = {"gitleaks": "Gitleaks", "osv": "OSV-Scanner", "semgrep": "Semgrep", "todos": "TODO-Suche", "languages": "Sprachwerkzeuge"}
+          # Remember aborted steps – they are only reported at the end, once it
+          # is clear whether results exist anyway (#149, #208). Tools like
+          # the OSV scanner exit with an error code when they FIND something – that is
+          # not an abort and must not show up as "results missing".
+          STEP_LABEL = {"gitleaks": "Gitleaks", "osv": "OSV-Scanner", "semgrep": "Semgrep", "todos": "TODO search", "languages": "Language tools"}
           try:
               outcomes = json.loads(os.environ.get("VW_OUTCOMES") or "{}")
           except Exception:
@@ -188,7 +188,7 @@ jobs:
           except Exception:
               out["tools"]["todos"] = False
 
-          # Sprachwerkzeuge: als Befunde mit Werkzeug im Regelnamen, zusammen höchstens 100
+          # Language tools: as findings with the tool in the rule name, at most 100 in total
           extra = []
           def add(tool, file, line, rule, severity, message):
               if len(extra) < 100:
@@ -225,7 +225,7 @@ jobs:
               for x in actionlint:
                   add("actionlint", x.get("filepath"), x.get("line"), x.get("kind"), "WARNING", x.get("message"))
 
-          # In HTML eingebundene Dateien gelten nicht als ungenutzt (#203)
+          # Files included in HTML do not count as unused (#203)
           try:
               with open(".vw-html-refs.txt", encoding="utf-8", errors="replace") as f:
                   html_refs = {line.strip() for line in f if line.strip()}
@@ -255,14 +255,14 @@ jobs:
 
           out["findings"] = extra + out["findings"][: 400 - len(extra)]
 
-          # Jetzt erst melden: Ein Schritt mit Fehlercode, der trotzdem Ergebnisse
-          # geliefert hat, ist kein Abbruch – nur einer ohne (#208).
+          # Report only now: a step with an error code that still delivered results
+          # is not an abort – only one without results is (#208).
           HAS_OUTPUT = {"gitleaks": lambda: out["tools"].get("gitleaks"), "osv": lambda: out["tools"].get("osv"), "semgrep": lambda: out["tools"].get("semgrep"), "todos": lambda: out["tools"].get("todos"), "languages": lambda: any(out["tools"].get(k) for k in ("bandit", "shellcheck", "hadolint", "actionlint", "fallow"))}
           for key in broken:
               lieferte = HAS_OUTPUT.get(key, lambda: False)()
               if lieferte:
                   continue
-              out["toolErrors"].append({"tool": key, "message": f"{STEP_LABEL.get(key, key)}: Schritt abgebrochen – die Ergebnisse fehlen"})
+              out["toolErrors"].append({"tool": key, "message": f"{STEP_LABEL.get(key, key)}: step aborted – results are missing"})
 
           out["counts"] = {k: len(out[k]) for k in ("secrets", "vulnerabilities", "findings", "todos")}
           with open("vibeworks-check.json", "w", encoding="utf-8") as f:

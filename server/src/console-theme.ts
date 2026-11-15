@@ -1,6 +1,6 @@
-// ── Konsolen-Design „RayBan Claude" ─────────────────────────────────
-// Farbige Terminalausgabe. Farben werden abgeschaltet, wenn NO_COLOR gesetzt
-// ist oder die Ausgabe nicht in ein Terminal geht (z. B. Log-Datei).
+// ── Console theme "RayBan Claude" ─────────────────────────────────
+// Colored terminal output. Colors are disabled when NO_COLOR is set
+// or the output does not go to a terminal (e.g. a log file).
 
 const useColor = !process.env.NO_COLOR && process.stdout.isTTY === true;
 
@@ -34,7 +34,7 @@ export const c = {
   dim: (text: string) => `${DIM}${text}${RESET}`,
   bold: (text: string) => `${BOLD}${text}${RESET}`,
 
-  // Semantische Helfer
+  // Semantic helpers
   success: (text: string) => `${GREEN}${text}${RESET}`,
   error: (text: string) => `${RED}${text}${RESET}`,
   warn: (text: string) => `${YELLOW}${text}${RESET}`,
@@ -62,23 +62,23 @@ export function showBanner(): void {
     `${LIGHT_ORANGE}    ╚═════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝${RESET}`,
     "",
     `${GRAY}   ──────────────────────────────────────────────────────${RESET}`,
-    `${WHITE}    Claude sieht die Welt durch deine Brille${RESET}`,
+    `${WHITE}    Claude sees the world through your glasses${RESET}`,
     `${GRAY}   ──────────────────────────────────────────────────────${RESET}`,
-    `${DIM}    Inoffizielles Projekt – nicht mit Meta, Ray-Ban oder${RESET}`,
-    `${DIM}    Anthropic verbunden. Fork von visionclaude.${RESET}`,
+    `${DIM}    Unofficial project - not affiliated with Meta, Ray-Ban or${RESET}`,
+    `${DIM}    Anthropic. Fork of visionclaude.${RESET}`,
     "",
   ];
 
   lines.forEach((line) => console.log(line));
 }
 
-// ── Info-Box nach dem Start ──
+// ── Info box after startup ──
 
 const BOX_INNER_WIDTH = 50;
 
-/** Sichtbare Länge eines Strings (ohne ANSI-Farbcodes). */
+/** Visible length of a string (without ANSI color codes). */
 function visibleLength(text: string): number {
-  // Entfernt ANSI-Farbcodes: "\x1b[32mOK\x1b[0m" → "OK"; "OK" bleibt unverändert.
+  // Strips ANSI color codes: "\x1b[32mOK\x1b[0m" → "OK"; "OK" stays unchanged.
   // https://regex101.com/?flavor=javascript&regex=%5Cx1b%5C%5B%5B0-9%3B%5D*m&flags=g&testString=%1B%5B32mOK%1B%5B0m%0AOK
   // eslint-disable-next-line no-control-regex
   return text.replace(/\x1b\[[0-9;]*m/g, "").length;
@@ -105,41 +105,41 @@ export interface ServerInfo {
 export function showServerInfo(info: ServerInfo): void {
   console.log("");
   console.log(boxRule("┌", "┐"));
-  console.log(boxLine(`${GREEN}●${RESET} ${WHITE}Gateway aktiv${RESET}`));
+  console.log(boxLine(`${GREEN}●${RESET} ${WHITE}Gateway active${RESET}`));
   console.log(boxRule("├", "┤"));
   console.log(boxLine(`${GRAY}Port${RESET}     ${WHITE}${info.port}${RESET}`));
-  console.log(boxLine(`${GRAY}Modell${RESET}   ${WHITE}${info.model}${RESET}`));
+  console.log(boxLine(`${GRAY}Model${RESET}   ${WHITE}${info.model}${RESET}`));
   console.log(
     boxLine(
-      `${GRAY}MCP${RESET}      ${WHITE}${info.mcpCount} Server${RESET} ${GRAY}→${RESET} ${LIGHT_ORANGE}${info.toolCount} Werkzeug(e)${RESET}`
+      `${GRAY}MCP${RESET}      ${WHITE}${info.mcpCount} server(s)${RESET} ${GRAY}→${RESET} ${LIGHT_ORANGE}${info.toolCount} tool(s)${RESET}`
     )
   );
-  console.log(boxLine(`${GRAY}Skills${RESET}   ${WHITE}${info.skillCount} geladen${RESET}`));
+  console.log(boxLine(`${GRAY}Skills${RESET}   ${WHITE}${info.skillCount} loaded${RESET}`));
   info.lanAddresses.forEach((addr) =>
-    console.log(boxLine(`${GRAY}Adresse${RESET}  ${CYAN}http://${addr}:${info.port}${RESET}`))
+    console.log(boxLine(`${GRAY}Address${RESET}  ${CYAN}http://${addr}:${info.port}${RESET}`))
   );
   console.log(boxRule("├", "┤"));
-  console.log(boxLine(`${CYAN}GET  /health${RESET}          ${DIM}Status (öffentlich)${RESET}`));
-  console.log(boxLine(`${CYAN}GET  /health/details${RESET}  ${DIM}Details (Token)${RESET}`));
-  console.log(boxLine(`${CYAN}GET  /tools${RESET}           ${DIM}MCP-Werkzeuge${RESET}`));
-  console.log(boxLine(`${CYAN}GET  /skills${RESET}          ${DIM}Geladene Skills${RESET}`));
-  console.log(boxLine(`${CYAN}POST /chat${RESET}            ${DIM}Nachricht + Bild${RESET}`));
+  console.log(boxLine(`${CYAN}GET  /health${RESET}          ${DIM}Status (public)${RESET}`));
+  console.log(boxLine(`${CYAN}GET  /health/details${RESET}  ${DIM}Details (token)${RESET}`));
+  console.log(boxLine(`${CYAN}GET  /tools${RESET}           ${DIM}MCP tools${RESET}`));
+  console.log(boxLine(`${CYAN}GET  /skills${RESET}          ${DIM}Loaded skills${RESET}`));
+  console.log(boxLine(`${CYAN}POST /chat${RESET}            ${DIM}Message + image${RESET}`));
   console.log(boxRule("└", "┘"));
-  console.log(c.dim("   Alle Endpunkte außer GET /health verlangen das Gateway-Token."));
+  console.log(c.dim("   All endpoints except GET /health require the gateway token."));
   console.log("");
 }
 
-/** Gibt das Gateway-Token aus, damit es in der App eingetragen werden kann. */
+/** Prints the gateway token so it can be entered in the app. */
 export function showToken(token: string, source: "env" | "file", filePath?: string): void {
   if (source === "env") {
     console.log(
-      c.label("[Auth]") + " Gateway-Token stammt aus GATEWAY_API_KEY (Umgebung bzw. .env) – Wert wird nicht angezeigt."
+      c.label("[Auth]") + " Gateway token comes from GATEWAY_API_KEY (environment or .env) - value is not shown."
     );
     return;
   }
-  console.log(c.label("[Auth]") + " Gateway-Token (in der App unter Einstellungen eintragen):");
+  console.log(c.label("[Auth]") + " Gateway token (enter it in the app under Settings):");
   console.log(`         ${BOLD}${LIGHT_ORANGE}${token}${RESET}`);
   if (filePath) {
-    console.log(c.dim(`         gespeichert in ${filePath}`));
+    console.log(c.dim(`         saved in ${filePath}`));
   }
 }

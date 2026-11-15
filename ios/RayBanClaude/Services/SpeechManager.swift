@@ -2,23 +2,23 @@ import Foundation
 import Speech
 import AVFoundation
 
-// MARK: - ElevenLabs-Stimmen (optional, kostenpflichtig)
+// MARK: - ElevenLabs voices (optional, paid)
 
 struct ElevenLabsVoice: Identifiable, Hashable {
     let id: String
     let name: String
     let description: String
 
-    /// Alle Stimmen sprechen mit dem Modell eleven_flash_v2_5 auch Deutsch.
+    /// With the eleven_flash_v2_5 model, all voices also speak German.
     static let allVoices: [ElevenLabsVoice] = [
-        ElevenLabsVoice(id: "XB0fDUnXU5powFXDhCwa", name: "Charlotte", description: "Warm, weiblich"),
-        ElevenLabsVoice(id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Ruhig, weiblich"),
-        ElevenLabsVoice(id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", description: "Sanft, weiblich"),
-        ElevenLabsVoice(id: "MF3mGyEYCl7XYWbV9V6O", name: "Elli", description: "Jung, weiblich"),
-        ElevenLabsVoice(id: "29vD33N1CtxCmqQRPOHJ", name: "Drew", description: "Ausgewogen, männlich"),
-        ElevenLabsVoice(id: "2EiwWnXFnvU5JabPnv8n", name: "Clyde", description: "Tief, männlich"),
-        ElevenLabsVoice(id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh", description: "Jung, männlich"),
-        ElevenLabsVoice(id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Klar, männlich"),
+        ElevenLabsVoice(id: "XB0fDUnXU5powFXDhCwa", name: "Charlotte", description: "Warm, female"),
+        ElevenLabsVoice(id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, female"),
+        ElevenLabsVoice(id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", description: "Soft, female"),
+        ElevenLabsVoice(id: "MF3mGyEYCl7XYWbV9V6O", name: "Elli", description: "Young, female"),
+        ElevenLabsVoice(id: "29vD33N1CtxCmqQRPOHJ", name: "Drew", description: "Balanced, male"),
+        ElevenLabsVoice(id: "2EiwWnXFnvU5JabPnv8n", name: "Clyde", description: "Deep, male"),
+        ElevenLabsVoice(id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh", description: "Young, male"),
+        ElevenLabsVoice(id: "pNInz6obpgDQGcFmaJgB", name: "Adam", description: "Clear, male"),
     ]
 
     static func voice(for id: String) -> ElevenLabsVoice {
@@ -26,7 +26,7 @@ struct ElevenLabsVoice: Identifiable, Hashable {
     }
 }
 
-/// Direkter ElevenLabs-Aufruf vom iPhone (nur Gateway-Modus; im Channel-Modus erzeugt der PC das Audio)
+/// Direct ElevenLabs call from the iPhone (gateway mode only; in channel mode the PC generates the audio)
 struct ElevenLabsTTSClient {
     let apiKey: String
 
@@ -47,15 +47,15 @@ struct ElevenLabsTTSClient {
         ])
         let (data, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-            // Fehlertext des Anbieters nur ins Log, nicht in die UI
-            print("[Sprache] ElevenLabs-Fehler: \(String(data: data, encoding: .utf8) ?? "-")")
+            // Provider error text only goes to the log, not the UI
+            print("[Speech] ElevenLabs error: \(String(data: data, encoding: .utf8) ?? "-")")
             throw URLError(.badServerResponse)
         }
         return data
     }
 }
 
-// MARK: - MP3-Wiedergabe
+// MARK: - MP3 playback
 
 @MainActor
 final class AudioDataPlayer: NSObject, AVAudioPlayerDelegate {
@@ -63,8 +63,8 @@ final class AudioDataPlayer: NSObject, AVAudioPlayerDelegate {
     private var player: AVAudioPlayer?
     private var completion: (() -> Void)?
 
-    /// Spielt in der bestehenden Voice-Chat-Session ab – kein Umschalten auf `.playback`
-    /// (das hat bei der Brille die Bluetooth-Route zerlegt).
+    /// Plays in the existing voice chat session – no switching to `.playback`
+    /// (that broke the Bluetooth route on the glasses).
     func play(data: Data, completion: @escaping () -> Void) {
         stop()
         do {
@@ -75,12 +75,12 @@ final class AudioDataPlayer: NSObject, AVAudioPlayerDelegate {
             self.completion = completion
             if !player.play() { finish() }
         } catch {
-            print("[Audio] Wiedergabe fehlgeschlagen: \(error)")
+            print("[Audio] Playback failed: \(error)")
             completion()
         }
     }
 
-    /// Bricht ab, ohne die Fertig-Rückmeldung auszulösen (sonst startete das Zuhören doppelt).
+    /// Cancels without triggering the completion callback (otherwise listening would start twice).
     func stop() {
         completion = nil
         player?.stop()
@@ -103,9 +103,9 @@ final class AudioDataPlayer: NSObject, AVAudioPlayerDelegate {
     }
 }
 
-// MARK: - Spracheingabe und -ausgabe
+// MARK: - Speech input and output
 
-/// Zuhör-Modus: Bereitschaft (wartet auf „Hey Claude“/„Claudi“) oder Befehl (nimmt den Satz auf).
+/// Listening mode: standby (waits for “Hey Claude”/“Claudi”) or command (records the sentence).
 enum ListenMode: Equatable {
     case standby
     case command
@@ -119,23 +119,23 @@ final class SpeechManager: NSObject, ObservableObject {
 
     var isListening: Bool { listenMode != nil }
 
-    /// Erkannter Befehl nach einer Sprechpause
+    /// Recognized command after a speech pause
     var onSpeechPause: ((String) -> Void)?
-    /// Weckwort erkannt – jetzt wird der Befehl aufgenommen
+    /// Wake word recognized – the command is now being recorded
     var onWakeWord: (() -> Void)?
-    /// Sprachausgabe natürlich beendet (nicht bei Abbruch)
+    /// Speech output finished naturally (not on cancellation)
     var onSpeechFinished: (() -> Void)?
-    /// Befehls-Zuhören endete ohne Befehl (Fehler, Zeitlimit, nichts gesagt)
+    /// Command listening ended without a command (error, timeout, nothing said)
     var onListeningStopped: ((String?) -> Void)?
 
-    /// Weckwort aktiv? Dann wird nach jedem Befehl wieder in Bereitschaft gewechselt.
+    /// Wake word active? Then it returns to standby after every command.
     var wakeWordEnabled = false
 
     private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    /// Die Aufnahme läuft durch (auch bei gesperrtem iPhone) – nur die Erkennung wechselt.
-    /// Früher wurde sie nach jedem Satz gestoppt; im Hintergrund darf iOS sie dann nicht neu starten.
+    /// Recording runs continuously (also with the iPhone locked) – only the recognition switches.
+    /// It used to be stopped after every sentence; in the background iOS then won't let it restart.
     private let audioEngine = AVAudioEngine()
     private let sink = RecognitionSink()
     private var tapInstalled = false
@@ -150,33 +150,33 @@ final class SpeechManager: NSObject, ObservableObject {
     private var standbyRefreshTimer: Timer?
     private var pauseThreshold: TimeInterval = 1.5
     private var pauseHandled = false
-    /// Befehl kam über das Weckwort → nur der Teil danach zählt
+    /// Command came via the wake word → only the part after it counts
     private var viaWakeWord = false
-    /// Jede Erkennungs-Sitzung bekommt eine Nummer – Rückmeldungen alter Sitzungen werden ignoriert
+    /// Every recognition session gets a number – callbacks from old sessions are ignored
     private var generation = 0
     private var standbyRetries = 0
 
-    /// Bereitschaft regelmäßig neu starten: Erkennung über Apples Server ist auf etwa eine Minute begrenzt;
-    /// auf dem Gerät gilt die Grenze nicht – dann seltener (der Text wächst sonst endlos, und im
-    /// Hintergrund scheitert jeder Neustart eher)
+    /// Restart standby regularly: recognition via Apple's servers is limited to about a minute;
+    /// on-device the limit doesn't apply – then less often (otherwise the text grows endlessly, and in the
+    /// background every restart is more likely to fail)
     private let standbyRefreshInterval: TimeInterval = 50
     private let onDeviceStandbyRefreshInterval: TimeInterval = 240
-    /// Nach dem Weckwort so lange auf den Befehl warten
+    /// How long to wait for the command after the wake word
     private let wakeCommandTimeout: TimeInterval = 7
 
     override init() {
         super.init()
         appleSynthesizer.delegate = self
         setLanguage(languageCode)
-        // Brille verbunden/getrennt, Anruf o. Ä.: Das Eingangsformat ändert sich, die Aufnahme muss neu aufgesetzt werden
+        // Glasses connected/disconnected, phone call, etc.: the input format changes, the recording must be set up again
         NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: audioEngine, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.engineConfigurationChanged() }
         }
     }
 
-    // MARK: Einstellungen
+    // MARK: Settings
 
-    /// Sprache für Erkennung und Stimme (früher fest auf Englisch – Deutsch wurde nicht verstanden).
+    /// Language for recognition and voice (used to be fixed to English – German was not understood).
     func setLanguage(_ code: String) {
         languageCode = code
         speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: code))
@@ -199,9 +199,9 @@ final class SpeechManager: NSObject, ObservableObject {
         return speech == .authorized && mic
     }
 
-    // MARK: Zuhören (Apple-Spracherkennung, wenn möglich auf dem Gerät)
+    // MARK: Listening (Apple speech recognition, on-device when possible)
 
-    /// Wartet auf das Weckwort. Ohne Weckwort-Einstellung wird nur gestoppt.
+    /// Waits for the wake word. Without the wake word setting, it just stops.
     func enterStandby() {
         guard wakeWordEnabled, !isSpeaking else {
             stopListening()
@@ -214,7 +214,7 @@ final class SpeechManager: NSObject, ObservableObject {
         }
     }
 
-    /// - Parameter noSpeechTimeout: Kommt in dieser Zeit kein Wort, endet das Zuhören (z. B. nach einer Antwort).
+    /// - Parameter noSpeechTimeout: If no word comes within this time, listening ends (e.g. after an answer).
     func startListening(mode: ListenMode = .command, noSpeechTimeout: TimeInterval? = nil) throws {
         if isSpeaking { stopSpeaking() }
         stopListening()
@@ -229,7 +229,7 @@ final class SpeechManager: NSObject, ObservableObject {
         request.addsPunctuation = true
         request.contextualStrings = WakeWord.contextualStrings
         if recognizer.supportsOnDeviceRecognition {
-            request.requiresOnDeviceRecognition = true // Datenschutz: Sprache verlässt das iPhone nicht
+            request.requiresOnDeviceRecognition = true // Privacy: speech does not leave the iPhone
         }
         recognitionRequest = request
         sink.set(request)
@@ -266,14 +266,14 @@ final class SpeechManager: NSObject, ObservableObject {
     }
 
     func stopListening() {
-        generation += 1 // laufende Rückmeldungen verwerfen
+        generation += 1 // discard in-flight callbacks
         silenceTimer?.invalidate()
         silenceTimer = nil
         noSpeechTimer?.invalidate()
         noSpeechTimer = nil
         standbyRefreshTimer?.invalidate()
         standbyRefreshTimer = nil
-        sink.set(nil) // Aufnahme läuft weiter, geht aber an keine Erkennung mehr
+        sink.set(nil) // recording continues but no longer goes to any recognition
         recognitionRequest?.endAudio()
         recognitionRequest = nil
         recognitionTask?.cancel()
@@ -282,10 +282,10 @@ final class SpeechManager: NSObject, ObservableObject {
         transcribedText = ""
     }
 
-    // MARK: Aufnahme (läuft durch, solange zugehört wird)
+    // MARK: Recording (runs continuously while listening)
 
-    /// Aufnahme starten, falls sie noch nicht läuft – mit dem Format der aktiven Route
-    /// (iPhone 48 kHz, Brille/HFP 8–16 kHz).
+    /// Start recording if it isn't running yet – with the format of the active route
+    /// (iPhone 48 kHz, glasses/HFP 8–16 kHz).
     private func ensureEngineRunning() throws {
         try AudioSessionManager.shared.configureForVoiceChat()
         if !tapInstalled {
@@ -305,7 +305,7 @@ final class SpeechManager: NSObject, ObservableObject {
         }
     }
 
-    /// Mikrofon ganz freigeben (kein Weckwort, App getrennt) – dann verschwindet auch der orange Punkt
+    /// Release the microphone completely (no wake word, app disconnected) – the orange dot disappears too
     func releaseMicrophone() {
         stopListening()
         if audioEngine.isRunning { audioEngine.stop() }
@@ -315,7 +315,7 @@ final class SpeechManager: NSObject, ObservableObject {
         }
     }
 
-    /// Route oder Format hat sich geändert – Aufnahme neu aufsetzen und dort weitermachen, wo wir waren
+    /// Route or format changed – set up recording again and continue where we left off
     private func engineConfigurationChanged() {
         let mode = listenMode
         if tapInstalled {
@@ -334,7 +334,7 @@ final class SpeechManager: NSObject, ObservableObject {
         switch listenMode {
         case .standby:
             standbyRetries = 0
-            // In Bereitschaft wird nichts angezeigt – nur auf das Weckwort geachtet
+            // Nothing is shown in standby – only listening for the wake word
             guard let command = WakeWord.command(in: text) else { return }
             listenMode = .command
             viaWakeWord = true
@@ -360,7 +360,7 @@ final class SpeechManager: NSObject, ObservableObject {
         }
     }
 
-    /// Erkennung beendet (Fehler, Stille, Zeitlimit von Apple)
+    /// Recognition ended (error, silence, Apple's time limit)
     private func handleRecognitionEnd() {
         if listenMode == .standby {
             scheduleStandbyRestart()
@@ -371,7 +371,7 @@ final class SpeechManager: NSObject, ObservableObject {
         onListeningStopped?(heard.isEmpty ? nil : heard)
     }
 
-    /// Neustart der Bereitschaft mit wachsender Pause, falls die Erkennung wiederholt scheitert
+    /// Restart standby with a growing pause if recognition fails repeatedly
     private func scheduleStandbyRestart() {
         stopListening()
         standbyRetries += 1
@@ -404,7 +404,7 @@ final class SpeechManager: NSObject, ObservableObject {
         }
     }
 
-    /// Pause oder Endergebnis – wird pro Äußerung nur EINMAL weitergegeben (früher teils doppelt).
+    /// Pause or final result – passed on only ONCE per utterance (used to be doubled at times).
     private func handlePause() {
         guard !pauseHandled, listenMode == .command else { return }
         let text = transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -414,9 +414,9 @@ final class SpeechManager: NSObject, ObservableObject {
         onSpeechPause?(text)
     }
 
-    // MARK: Sprechen
+    // MARK: Speaking
 
-    /// Lokale Sprachausgabe: ElevenLabs (falls Key) sonst kostenlose iPhone-Stimme.
+    /// Local speech output: ElevenLabs (if key set), otherwise the free iPhone voice.
     func speak(_ text: String) {
         stopSpeaking()
         isSpeaking = true
@@ -436,7 +436,7 @@ final class SpeechManager: NSObject, ObservableObject {
         }
     }
 
-    /// Vom PC erzeugtes Audio abspielen (Channel-Modus, mit Token-Header).
+    /// Play audio generated by the PC (channel mode, with token header).
     func playRemoteAudio(request: URLRequest, fallbackText: String) {
         stopSpeaking()
         isSpeaking = true
@@ -447,7 +447,7 @@ final class SpeechManager: NSObject, ObservableObject {
                 guard isSpeaking else { return }
                 AudioDataPlayer.shared.play(data: data) { [weak self] in self?.finishSpeaking() }
             } catch {
-                print("[Sprache] Audio vom PC nicht abspielbar (\(error.localizedDescription)) – iPhone-Stimme")
+                print("[Speech] Audio from the PC could not be played (\(error.localizedDescription)) – iPhone voice")
                 guard isSpeaking else { return }
                 speakWithApple(fallbackText)
             }
@@ -474,7 +474,7 @@ final class SpeechManager: NSObject, ObservableObject {
         appleSynthesizer.speak(utterance)
     }
 
-    /// Beste installierte Stimme der Sprache (Premium > Erweitert > Standard)
+    /// Best installed voice for the language (Premium > Enhanced > Standard)
     private static func bestVoice(for code: String) -> AVSpeechSynthesisVoice? {
         let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == code }
         return voices.first { $0.quality == .premium }
@@ -489,8 +489,8 @@ extension SpeechManager: AVSpeechSynthesizerDelegate {
     }
 }
 
-/// Reicht die Audio-Puffer der durchlaufenden Aufnahme an die gerade aktive Erkennung weiter.
-/// Wird vom Audio-Thread aufgerufen – daher mit Sperre statt Main-Actor.
+/// Passes the audio buffers of the continuous recording on to the currently active recognition.
+/// Called from the audio thread – hence a lock instead of the main actor.
 final class RecognitionSink: @unchecked Sendable {
     private let lock = NSLock()
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -516,9 +516,9 @@ enum SpeechError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .recognizerUnavailable(let code):
-            return "Spracherkennung für \(code) nicht verfügbar – Sprache in den Einstellungen prüfen"
+            return "Speech recognition for \(code) is not available – check the language in Settings"
         case .inputNotReady:
-            return "Mikrofon noch nicht bereit – bitte nochmal tippen"
+            return "Microphone not ready yet – please tap again"
         }
     }
 }

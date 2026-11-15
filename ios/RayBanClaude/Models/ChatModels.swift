@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Gateway-Modus (REST)
+// MARK: - Gateway mode (REST)
 
 struct ChatRequest: Encodable {
     let text: String
@@ -24,7 +24,7 @@ struct HealthResponse: Decodable {
     let mode: String?
 }
 
-/// Hülle zum Dekodieren beliebiger JSON-Werte
+/// Wrapper for decoding arbitrary JSON values
 struct AnyCodable: Decodable {
     let value: Any
 
@@ -48,7 +48,7 @@ struct AnyCodable: Decodable {
     }
 }
 
-// MARK: - Channel-Modus (WebSocket)
+// MARK: - Channel mode (WebSocket)
 
 struct Attachment: Identifiable, Equatable {
     let name: String
@@ -60,7 +60,7 @@ struct Attachment: Identifiable, Equatable {
     }
 }
 
-/// Freigabe-Anfrage von Claude Code (Permission-Relay)
+/// Approval request from Claude Code (permission relay)
 struct PermissionRequest: Identifiable, Equatable {
     let id: String
     let toolName: String
@@ -68,10 +68,10 @@ struct PermissionRequest: Identifiable, Equatable {
     let inputPreview: String
 }
 
-// MARK: - Transkript
+// MARK: - Transcript
 
 struct TranscriptMessage: Identifiable, Equatable {
-    /// Server-ID bei Claude-Antworten (für edit_message), sonst eine lokale UUID
+    /// Server ID for Claude replies (for edit_message), otherwise a local UUID
     let id: String
     let role: Role
     var text: String

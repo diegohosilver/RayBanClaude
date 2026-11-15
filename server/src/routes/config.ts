@@ -4,8 +4,8 @@ import type { ClaudeClient } from "../claude-client.js";
 import { HTTP_BAD_REQUEST, sendError } from "../http.js";
 import { validateConfigUpdate } from "../validation.js";
 
-// GET  /config – aktuelle Konfiguration (nur mit Token)
-// POST /config – system_prompt, model, max_tokens ändern (validiert)
+// GET  /config – current configuration (token required)
+// POST /config – system_prompt, model, max_tokens update (validated)
 
 export function createConfigRouter(claudeClient: ClaudeClient): Router {
   const router = Router();

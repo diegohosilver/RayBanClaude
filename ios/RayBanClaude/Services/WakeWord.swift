@@ -1,36 +1,36 @@
 import Foundation
 import AVFoundation
 
-/// Erkennt das Weckwort („Hey Claude“ oder „Claudi“) im Text der Spracherkennung
-/// und liefert den Rest des Satzes als Befehl.
+/// Detects the wake word (“Hey Claude” or “Claudi”) in the speech recognition text
+/// and returns the rest of the sentence as the command.
 ///
-/// „Claude“ allein reicht bewusst nicht – sonst würde jedes Gespräch *über* Claude auslösen.
-/// Die Liste enthält typische Verhörer der deutschen Spracherkennung („Hey Cloud“, „Klaudi“).
+/// “Claude” alone is deliberately not enough – otherwise every conversation *about* Claude would trigger it.
+/// The list contains typical mishearings by the speech recognizer, including German ones (“Hey Cloud”, “Klaudi”).
 enum WakeWord {
     struct Match: Equatable {
-        /// Ab hier beginnt der eigentliche Befehl im Originaltext
+        /// The actual command starts here in the original text
         let commandStart: String.Index
     }
 
-    /// Wortfolgen (bereits normalisiert: klein, ohne Akzente)
+    /// Word sequences (already normalized: lowercase, no accents)
     static let phrases: [[String]] = [
         ["hey", "claude"], ["hey", "cloud"], ["hey", "claud"], ["hey", "klaud"], ["hey", "clod"], ["hey", "klod"],
         ["hey", "claudi"], ["hey", "klaudi"],
-        ["hi", "claude"], ["hallo", "claude"], ["ok", "claude"], ["okay", "claude"], ["he", "claude"], ["hei", "claude"],
+        ["hi", "claude"], ["hallo", "claude"], ["hello", "claude"], ["ok", "claude"], ["okay", "claude"], ["he", "claude"], ["hei", "claude"],
         ["claudi"], ["klaudi"], ["claudie"], ["klaudie"], ["clodi"], ["glaudi"],
     ]
 
-    /// Hilft der Spracherkennung, diese Wörter richtig zu schreiben
+    /// Helps the speech recognizer spell these words correctly
     static let contextualStrings = ["Hey Claude", "Claude", "Claudi"]
 
-    /// Anzeige in der App
-    static let displayName = "„Hey Claude“ oder „Claudi“"
+    /// Display text in the app
+    static let displayName = "“Hey Claude” or “Claudi”"
 
     static func normalize(_ word: String) -> String {
-        word.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "de_DE")).lowercased()
+        word.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US")).lowercased()
     }
 
-    /// Frühestes Weckwort im Text, oder nil
+    /// Earliest wake word in the text, or nil
     static func match(in text: String) -> Match? {
         var words: [(word: String, range: Range<String.Index>)] = []
         text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: .byWords) { substring, range, _, _ in
@@ -47,7 +47,7 @@ enum WakeWord {
         return nil
     }
 
-    /// Befehl nach dem Weckwort, ohne führende Satzzeichen („Hey Claude, was siehst du?“ → „was siehst du?“)
+    /// Command after the wake word, without leading punctuation (“Hey Claude, what do you see?” → “what do you see?”)
     static func command(in text: String) -> String? {
         guard let match = match(in: text) else { return nil }
         let trimSet = CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters)
@@ -55,8 +55,8 @@ enum WakeWord {
     }
 }
 
-/// Kurzer Zwei-Ton-Gong als Rückmeldung „Ich höre zu“ – wird im Speicher erzeugt
-/// und läuft über die aktive Audio-Route (also auch über die Brille).
+/// Short two-tone chime as “I'm listening” feedback – generated in memory
+/// and played over the active audio route (so also through the glasses).
 @MainActor
 final class Chime {
     static let shared = Chime()
@@ -70,11 +70,11 @@ final class Chime {
             player.play()
             self.player = player
         } catch {
-            print("[Gong] Wiedergabe fehlgeschlagen: \(error)")
+            print("[Chime] Playback failed: \(error)")
         }
     }
 
-    /// 16-Bit-Mono-WAV mit zwei kurzen Sinustönen (G5, D6) und weichen Flanken
+    /// 16-bit mono WAV with two short sine tones (G5, D6) and soft edges
     private static func makeWAV() -> Data {
         let sampleRate = 44_100.0
         let tones: [(frequency: Double, seconds: Double)] = [(784, 0.09), (1175, 0.13)]

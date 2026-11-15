@@ -5,21 +5,21 @@ import UIKit
 import MWDATCore
 
 enum SessionState: String {
-    case disconnected = "Getrennt"
-    case idle = "Bereit"
-    case standby = "Sag „Hey Claude“"
-    case listening = "Hört zu"
-    case thinking = "Denkt nach"
-    case speaking = "Spricht"
+    case disconnected = "Disconnected"
+    case idle = "Ready"
+    case standby = "Say \"Hey Claude\""
+    case listening = "Listening"
+    case thinking = "Thinking"
+    case speaking = "Speaking"
 }
 
-/// Über welchen Weg eine Frage gerade an Claude geht
+/// Which route a question is currently taking to Claude
 enum Route: Equatable {
-    /// PC: Claude Code (Channel) oder Gateway
+    /// PC: Claude Code (channel) or gateway
     case pc
-    /// Ohne PC: direkt an die Claude-API
+    /// No PC: directly to the Claude API
     case direct
-    /// Weder PC erreichbar noch API-Key vorhanden
+    /// Neither PC reachable nor API key available
     case none
 }
 
@@ -43,7 +43,7 @@ final class SessionViewModel: ObservableObject {
         }
     }
 
-    /// Verbunden über Tailscale (unterwegs) statt übers Heim-WLAN
+    /// Connected via Tailscale (away) instead of the home Wi-Fi
     @Published private(set) var viaTailscale = false
 
     @Published var activeFrameSource: FrameSourceType = .iPhone {
@@ -51,9 +51,9 @@ final class SessionViewModel: ObservableObject {
     }
     @Published private(set) var frameSourceStatus: FrameSourceStatus = .disconnected
 
-    /// Kopplung aus QR-Code – wartet auf Bestätigung
+    /// Pairing from QR code – waiting for confirmation
     @Published var pendingPairing: PairingRequest?
-    /// Tool-Freigabe von Claude Code – wartet auf Erlauben/Ablehnen
+    /// Tool approval from Claude Code – waiting for Allow/Deny
     @Published private(set) var pendingPermission: PermissionRequest?
 
     @Published var codeToast: DetectedCode?
@@ -65,31 +65,31 @@ final class SessionViewModel: ObservableObject {
     let rayBanManager = RayBanManager()
     let phoneActions = PhoneActionHandler()
     let directClient = DirectClaudeClient()
-    /// Was Claude sich über dich merkt – im Demo-Modus nur im Arbeitsspeicher
+    /// What Claude remembers about you – in demo mode only in memory
     let memory = MemoryStore(persistent: !DemoMode.isActive)
 
     private var cancellables = Set<AnyCancellable>()
     private var watchdog: Task<Void, Never>?
     private var lastGatewayMode: String?
-    /// Gateway-Gespräch kennt das Gedächtnis schon
+    /// Gateway conversation already knows the memory
     private var gatewayMemorySent = false
-    /// Das Foto, das Claude zuletzt bekommen hat (für „Mach ein Foto“ → in der Mediathek sichern)
+    /// The photo Claude received last (for "Take a photo" → save to the photo library)
     private var lastPhoto: (data: Data, date: Date)?
-    /// So lange gilt das letzte Foto noch als „das Foto von eben“
+    /// For this long the last photo still counts as "the photo from just now"
     private let lastPhotoValidity: TimeInterval = 120
-    /// Weg der Frage, die gerade bearbeitet wird
+    /// Route of the question currently being processed
     private var processingRoute: Route = .none
 
-    /// Ohne Zustellbestätigung gilt eine Nachricht nach dieser Zeit als verloren
+    /// Without a delivery confirmation, a message counts as lost after this time
     private let ackTimeout: UInt64 = 10_000_000_000
-    /// Ohne Antwort von Claude wird „Denkt nach“ nach dieser Zeit beendet
+    /// Without a reply from Claude, "Thinking" ends after this time
     private let replyTimeout: UInt64 = 180_000_000_000
-    /// Nach einer Antwort so lange auf eine Rückfrage warten, dann wieder aufs Weckwort
+    /// After a reply, wait this long for a follow-up, then go back to the wake word
     private let followUpTimeout: TimeInterval = 8
-    /// Nach dem Doppeltipp so lange auf die Frage warten (wie nach „Hey Claude“)
+    /// After the double tap, wait this long for the question (as after "Hey Claude")
     private let gestureListenTimeout: TimeInterval = 7
-    /// Frage zur Capture-Taste – `VisionIntent` erkennt daran, dass ein Foto nötig ist
-    static let gesturePhotoQuestion = "Was siehst du?"
+    /// Question for the capture button – `VisionIntent` recognizes from it that a photo is needed
+    static let gesturePhotoQuestion = "What do you see?"
 
     init(config: ClaudeConfig = ClaudeConfig.load()) {
         self.config = config
@@ -104,37 +104,37 @@ final class SessionViewModel: ObservableObject {
             loadDemo()
         } else {
             rayBanManager.startMonitoringRegistration()
-            // Die Brille hat Vorrang: ist sie gekoppelt, ist sie die Kamera (iPhone nur als Ersatz)
+            // The glasses take priority: if paired, they are the camera (iPhone only as a fallback)
             if rayBanManager.isRegistered { activeFrameSource = .rayBan }
         }
     }
 
-    /// Beispielgespräch für Screenshots (`-demo`): nichts wird gestartet oder gesendet
+    /// Sample conversation for screenshots (`-demo`): nothing is started or sent
     private func loadDemo() {
         activeFrameSource = .rayBan
         isConnected = true
         frameSourceStatus = .connected
         modeManager.setActiveMode(VisionMode.hvac)
         transcript = [
-            TranscriptMessage(role: .user, text: "Wie alt ist die Therme und was heißt F28?"),
-            TranscriptMessage(role: .assistant, text: "Eine Thermavia CondensPro 24 von 2014, also gut zwölf Jahre alt. F28 bedeutet: Zündung fehlgeschlagen – prüf zuerst, ob der Gashahn offen ist."),
-            TranscriptMessage(role: .user, text: "Stell einen Timer auf zehn Minuten für die Nudeln."),
-            TranscriptMessage(role: .system, text: "📱 Timer „Nudeln“ für 10 Min gestellt"),
-            TranscriptMessage(role: .assistant, text: "Läuft – in zehn Minuten sag ich Bescheid."),
+            TranscriptMessage(role: .user, text: "How old is the boiler and what does F28 mean?"),
+            TranscriptMessage(role: .assistant, text: "A Thermavia CondensPro 24 from 2014, so a good twelve years old. F28 means: ignition failed – first check whether the gas valve is open."),
+            TranscriptMessage(role: .user, text: "Set a timer for ten minutes for the pasta."),
+            TranscriptMessage(role: .system, text: "📱 Timer \"Pasta\" set for 10 min"),
+            TranscriptMessage(role: .assistant, text: "On it – I'll let you know in ten minutes."),
         ]
         var confirmation: ActionConfirmation?
         if DemoMode.showConfirmation {
-            transcript.append(TranscriptMessage(role: .user, text: "Ruf Mama an."))
-            transcript.append(TranscriptMessage(role: .system, text: "📱 Rückfrage auf dem iPhone: Anruf an Mama (Mobil)"))
-            confirmation = ActionConfirmation(kind: .call, title: "Anruf an Mama?",
-                                              options: [.init(label: "Mama (Mobil)", value: "+490000000000")])
+            transcript.append(TranscriptMessage(role: .user, text: "Call Mom."))
+            transcript.append(TranscriptMessage(role: .system, text: "📱 Follow-up on the iPhone: call Mom (mobile)"))
+            confirmation = ActionConfirmation(kind: .call, title: "Call Mom?",
+                                              options: [.init(label: "Mom (mobile)", value: "+490000000000")])
         }
-        phoneActions.showDemo(timerLabel: "Nudeln", seconds: 9 * 60 + 41, confirmation: confirmation)
-        memory.loadDemo(["Tochter heißt Mia, Geburtstag am 3. Mai", "Trinkt Espresso ohne Zucker", "Arbeitet als Heizungsbauer"])
+        phoneActions.showDemo(timerLabel: "Pasta", seconds: 9 * 60 + 41, confirmation: confirmation)
+        memory.loadDemo(["Daughter is named Mia, birthday on May 3", "Drinks espresso without sugar", "Works as a heating engineer"])
         state = .standby
     }
 
-    // MARK: - Einrichtung
+    // MARK: - Setup
 
     private func applyConfig() {
         bridge.updateConfig(config)
@@ -149,8 +149,8 @@ final class SessionViewModel: ObservableObject {
     }
 
     private func setupBindings() {
-        // Modus- und Aktions-Änderungen an die Oberfläche weiterreichen. Die Brille wird bewusst
-        // NICHT weitergereicht – sonst würde jedes Videobild die ganze Oberfläche neu berechnen.
+        // Pass mode and action changes on to the UI. The glasses are deliberately
+        // NOT passed on – otherwise every video frame would recompute the whole UI.
         [modeManager.objectWillChange, phoneActions.objectWillChange, memory.objectWillChange].forEach { publisher in
             publisher.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &cancellables)
         }
@@ -163,7 +163,7 @@ final class SessionViewModel: ObservableObject {
             .sink { [weak self] remote in self?.viaTailscale = remote }
             .store(in: &cancellables)
 
-        // Brille später gekoppelt → ab sofort die Brille nehmen
+        // Glasses paired later → use the glasses from now on
         rayBanManager.$isRegistered
             .removeDuplicates()
             .dropFirst()
@@ -178,7 +178,7 @@ final class SessionViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Touchpad und Capture-Taste der Brille (wie Meta AI)
+        // Touchpad and capture button of the glasses (like Meta AI)
         rayBanManager.onGesture = { [weak self] gesture in self?.handleGlassesGesture(gesture) }
 
         cameraManager.$connectionStatus
@@ -192,7 +192,7 @@ final class SessionViewModel: ObservableObject {
             .sink { [weak self] text in
                 guard let self else { return }
                 self.currentTranscription = text
-                // Kamera schon wecken, während die Frage noch läuft („Was steht auf dem …“) – spart Wartezeit
+                // Wake the camera while the question is still being spoken ("What does it say on the …") – saves waiting time
                 if self.speechManager.listenMode == .command, VisionIntent.needsImage(text) {
                     self.activeSource.prepareCapture()
                 }
@@ -212,7 +212,7 @@ final class SessionViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Nach einem Anruf o. Ä. wieder aufs Weckwort hören
+        // After a call or similar, listen for the wake word again
         NotificationCenter.default.publisher(for: .audioInterruptionEnded)
             .sink { [weak self] _ in self?.goIdle() }
             .store(in: &cancellables)
@@ -225,7 +225,7 @@ final class SessionViewModel: ObservableObject {
             errorMessage = nil
         case .failed(let message):
             if route == .direct {
-                notice = "PC nicht erreichbar – ich frage direkt"
+                notice = "PC unreachable – asking directly"
             } else {
                 errorMessage = message
             }
@@ -246,7 +246,7 @@ final class SessionViewModel: ObservableObject {
         bridge.onConnected = { [weak self] in
             guard let self else { return }
             try? AudioSessionManager.shared.configureForVoiceChat()
-            self.syncMemory() // Claude am PC bekommt die Merkliste mit der ersten Nachricht
+            self.syncMemory() // Claude on the PC gets the memory list with the first message
             if !self.activeSource.isRunning { self.startActiveFrameSource() }
             self.goIdle()
         }
@@ -287,15 +287,15 @@ final class SessionViewModel: ObservableObject {
         }
         speechManager.onSpeechFinished = { [weak self] in
             guard let self, self.state == .speaking else { return }
-            // canTalk statt isConnected – sonst gab es ohne PC (direkt) nie eine Rückfrage
+            // canTalk instead of isConnected – otherwise there was never a follow-up without a PC (direct)
             if self.config.autoListen && self.canTalk {
-                // Kurz auf eine Rückfrage warten – mit Weckwort danach wieder in Bereitschaft
+                // Wait briefly for a follow-up – with the wake word, return to standby afterwards
                 self.startListening(noSpeechTimeout: self.config.wakeWordEnabled ? self.followUpTimeout : nil)
             } else {
                 self.goIdle()
             }
         }
-        // Zuhören ohne Befehl beendet (Stille, Fehler) → zurück in Bereitschaft
+        // Listening ended without a command (silence, error) → back to standby
         speechManager.onListeningStopped = { [weak self] _ in
             guard let self, self.state == .listening else { return }
             self.goIdle()
@@ -312,55 +312,55 @@ final class SessionViewModel: ObservableObject {
         }
         phoneActions.onTimerFired = { [weak self] timer in
             UINotificationFeedbackGenerator().notificationOccurred(.warning)
-            let text = timer.isAlarm ? "Wecker: \(timer.label)." : "Dein Timer \(timer.label) ist abgelaufen."
+            let text = timer.isAlarm ? "Alarm: \(timer.label)." : "Your timer \(timer.label) has finished."
             self?.transcript.append(TranscriptMessage(role: .system, text: "⏱ \(text)"))
             self?.speak(text, audioPath: nil)
         }
     }
 
-    /// PC verbunden → PC; sonst (wenn erlaubt und API-Key da) direkt; sonst nichts
+    /// PC connected → PC; otherwise (if allowed and API key present) direct; otherwise nothing
     var route: Route {
         if config.connectionMode == .direct { return config.hasDirectKey ? .direct : .none }
         if isConnected { return .pc }
         return config.directFallback && config.hasDirectKey ? .direct : .none
     }
 
-    /// Kann gerade gefragt werden (PC oder direkt)?
+    /// Can a question be asked right now (PC or direct)?
     var canTalk: Bool { route != .none }
 
-    /// Ruhezustand ohne laufende Aufnahme: mit Weckwort „Sag Hey Claude“, sonst „Bereit“
+    /// Resting state without active recording: with wake word "Say Hey Claude", otherwise "Ready"
     private var restingState: SessionState {
         guard canTalk else { return .disconnected }
         return config.wakeWordEnabled ? .standby : .idle
     }
 
-    /// Zurück in den Ruhezustand – mit Weckwort hört die App wieder auf „Hey Claude“.
+    /// Back to the resting state – with the wake word, the app listens for "Hey Claude" again.
     func goIdle() {
         guard !speechManager.isSpeaking else { return }
         if canTalk && config.wakeWordEnabled {
             speechManager.enterStandby()
         } else {
-            speechManager.releaseMicrophone() // ohne Weckwort braucht niemand das Mikrofon
+            speechManager.releaseMicrophone() // without the wake word nobody needs the microphone
         }
         state = isProcessing ? .thinking : restingState
     }
 
-    // MARK: - Vordergrund / Hintergrund
+    // MARK: - Foreground / Background
 
-    /// Gesperrt oder in der Tasche: Mit Hosentaschen-Modus hört die App über die Brille weiter
-    /// (Hintergrund-Audio), sonst gibt sie das Mikrofon frei. Zurück im Vordergrund geht es weiter.
+    /// Locked or in your pocket: with pocket mode the app keeps listening through the glasses
+    /// (background audio), otherwise it releases the microphone. Back in the foreground it resumes.
     func scenePhaseChanged(_ phase: ScenePhase) {
         switch phase {
         case .background:
             if !config.listenWhenLocked {
                 speechManager.releaseMicrophone()
-                // Brillen-Sitzung vor dem Anhalten der App sauber beenden – sonst kann die Brille hängen bleiben
+                // End the glasses session cleanly before the app is suspended – otherwise the glasses can get stuck
                 rayBanManager.releaseCamera()
                 if state == .standby || state == .listening { state = .idle }
             }
         case .active:
             Task { await phoneActions.refreshTimers() }
-            // Wurde die Brille vor dem Anhalten freigegeben, kommen die Gesten jetzt zurück
+            // If the glasses were released before suspending, the gestures come back now
             if activeFrameSource == .rayBan, canTalk { rayBanManager.restoreGestureSession() }
             if !speechManager.isSpeaking, !speechManager.isListening, state != .disconnected { goIdle() }
         default:
@@ -368,7 +368,7 @@ final class SessionViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Verbindung
+    // MARK: - Connection
 
     func connect() async {
         errorMessage = nil
@@ -376,7 +376,7 @@ final class SessionViewModel: ObservableObject {
             if config.baseURL != nil, !config.channelToken.isEmpty {
                 await bridge.connect()
             } else if !config.hasDirectKey {
-                errorMessage = "Noch nicht gekoppelt – QR-Code im PC-Dashboard scannen oder in den Einstellungen „Ohne PC“ einrichten"
+                errorMessage = "Not paired yet – scan the QR code in the PC dashboard or set up \"No PC\" in Settings"
             }
         }
         if route == .direct { activateDirect() }
@@ -385,7 +385,7 @@ final class SessionViewModel: ObservableObject {
         }
     }
 
-    /// Ohne PC loslegen: Kamera starten und aufs Weckwort hören
+    /// Get going without a PC: start the camera and listen for the wake word
     private func activateDirect() {
         if !activeSource.isRunning { startActiveFrameSource() }
         if state == .disconnected || state == .idle || state == .standby { goIdle() }
@@ -401,7 +401,7 @@ final class SessionViewModel: ObservableObject {
         state = .disconnected
     }
 
-    /// Links an die App: Kopplung (`raybanclaude://pair?…`) oder Rückruf der Meta-AI-App.
+    /// Links into the app: pairing (`raybanclaude://pair?…`) or callback from the Meta AI app.
     func handleIncomingURL(_ url: URL) {
         if let pairing = PairingRequest(url: url) {
             pendingPairing = pairing
@@ -410,7 +410,7 @@ final class SessionViewModel: ObservableObject {
         guard URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
             .contains(where: { $0.name == "metaWearablesAction" }) == true else {
             if url.host == PairingRequest.urlHost {
-                errorMessage = "Ungültiger Kopplungs-Code – im Dashboard neu erzeugen"
+                errorMessage = "Invalid pairing code – generate a new one in the dashboard"
             }
             return
         }
@@ -418,7 +418,7 @@ final class SessionViewModel: ObservableObject {
             do {
                 _ = try await Wearables.shared.handleUrl(url)
             } catch {
-                errorMessage = "Meta-AI-Rückmeldung fehlgeschlagen: \(error.localizedDescription)"
+                errorMessage = "Meta AI callback failed: \(error.localizedDescription)"
             }
         }
     }
@@ -434,8 +434,8 @@ final class SessionViewModel: ObservableObject {
         updated.connectionMode = .channel
         config = updated
         notice = pairing.remote == nil
-            ? "Gekoppelt mit \(pairing.host)"
-            : "Gekoppelt – zu Hause über WLAN, unterwegs über Tailscale"
+            ? "Paired with \(pairing.host)"
+            : "Paired – via Wi-Fi at home, via Tailscale when away"
         Task { await connect() }
     }
 
@@ -443,7 +443,7 @@ final class SessionViewModel: ObservableObject {
         await rayBanManager.register()
     }
 
-    // MARK: - Bildquelle
+    // MARK: - Frame source
 
     private func switchFrameSource() {
         cameraManager.stop()
@@ -471,11 +471,11 @@ final class SessionViewModel: ObservableObject {
         }
     }
 
-    // MARK: - QR-/Barcodes
+    // MARK: - QR codes / barcodes
 
     private func handleDetectedCode(_ code: DetectedCode) {
         if modeManager.activeMode.id == VisionMode.qrScanner.id {
-            Task { await sendText("Ich habe einen \(code.typeLabel)-Code gescannt: \(code.value). Was ist das?") }
+            Task { await sendText("I scanned a \(code.typeLabel) code: \(code.value). What is this?") }
             return
         }
         codeToast = code
@@ -486,18 +486,18 @@ final class SessionViewModel: ObservableObject {
 
     func sendCodeToChat(_ code: DetectedCode) {
         codeToast = nil
-        Task { await sendText("Ich habe einen \(code.typeLabel)-Code gescannt: \(code.value). Was ist das?") }
+        Task { await sendText("I scanned a \(code.typeLabel) code: \(code.value). What is this?") }
     }
 
     func copyCodeToClipboard(_ code: DetectedCode) {
         UIPasteboard.general.string = code.value
         codeToast = nil
-        notice = "Kopiert"
+        notice = "Copied"
     }
 
-    // MARK: - Sprache
+    // MARK: - Speech
 
-    /// Mikrofon-Knopf: in Bereitschaft oder Ruhe sofort zuhören, beim Zuhören abbrechen
+    /// Microphone button: listen immediately in standby or idle, cancel while listening
     func toggleListening() {
         if speechManager.listenMode == .command {
             speechManager.stopListening()
@@ -526,14 +526,14 @@ final class SessionViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Gesten der Brille
+    // MARK: - Glasses gestures
 
-    /// Wie Meta AI: Doppeltipp → sofort zuhören (ohne Weckwort, auch mitten in einer Antwort),
-    /// Capture-Taste → Foto und „Was siehst du?“, Zurück → abbrechen.
+    /// Like Meta AI: double tap → listen immediately (no wake word, even in the middle of an answer),
+    /// capture button → photo and "What do you see?", back → cancel.
     private func handleGlassesGesture(_ gesture: GlassesGesture) {
         guard activeFrameSource == .rayBan else { return }
         guard canTalk else {
-            notice = "Nicht verbunden – mit dem PC koppeln oder „Ohne PC“ einrichten"
+            notice = "Not connected – pair with the PC or set up \"No PC\""
             return
         }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -542,7 +542,7 @@ final class SessionViewModel: ObservableObject {
             startListening(noSpeechTimeout: gestureListenTimeout)
         case .photo:
             speechManager.stopSpeaking()
-            rayBanManager.prepareCapture() // Kamera schon wecken, bevor die Frage rausgeht
+            rayBanManager.prepareCapture() // Wake the camera before the question goes out
             Task { await sendText(Self.gesturePhotoQuestion) }
         case .cancel:
             speechManager.stopSpeaking()
@@ -551,7 +551,7 @@ final class SessionViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Senden
+    // MARK: - Sending
 
     func sendText(_ text: String) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -560,7 +560,7 @@ final class SessionViewModel: ObservableObject {
     }
 
     private func handleUserSpeech(_ text: String) async {
-        // Offene Freigabe oder Rückfrage? Dann ist „ja“/„nein“ die Antwort darauf.
+        // Open approval or follow-up question? Then "yes"/"no" is the answer to it.
         if let request = pendingPermission, let allow = Self.interpretYesNo(text) {
             await answerPermission(request, allow: allow)
             goIdle()
@@ -572,14 +572,14 @@ final class SessionViewModel: ObservableObject {
             return
         }
         guard !isProcessing else {
-            notice = "Claude antwortet noch – kurz warten"
+            notice = "Claude is still answering – wait a moment"
             goIdle()
             return
         }
-        // Früher stand hier „guard isConnected“ – das hat den Weg ohne PC (direkt) komplett blockiert
+        // This used to be "guard isConnected" – that completely blocked the no-PC (direct) route
         let currentRoute = route
         guard currentRoute != .none else {
-            errorMessage = "Nicht verbunden – mit dem PC koppeln oder „Ohne PC“ einrichten"
+            errorMessage = "Not connected – pair with the PC or set up \"No PC\""
             return
         }
 
@@ -590,8 +590,8 @@ final class SessionViewModel: ObservableObject {
         isProcessing = true
         processingRoute = currentRoute
         errorMessage = nil
-        goIdle() // während Claude nachdenkt, reagiert die App weiter auf „Hey Claude“
-        // Wie Meta AI: Foto nur, wenn die Frage eins braucht – sonst bleibt die Kamera aus
+        goIdle() // while Claude is thinking, the app keeps responding to "Hey Claude"
+        // Like Meta AI: photo only if the question needs one – otherwise the camera stays off
         let image = VisionIntent.needsImage(text) ? await photoForQuestion() : nil
 
         if currentRoute == .direct {
@@ -609,7 +609,7 @@ final class SessionViewModel: ObservableObject {
         }
     }
 
-    /// Foto für eine Frage: iPhone-Sucher → aktuelles Bild; Brille → kurz Kamera an, Foto, wieder aus
+    /// Photo for a question: iPhone viewfinder → current frame; glasses → briefly turn the camera on, take a photo, turn it off again
     private func photoForQuestion() async -> Data? {
         if activeFrameSource == .iPhone, let frame = activeSource.consumeFrame() {
             lastPhoto = (frame, Date())
@@ -618,33 +618,33 @@ final class SessionViewModel: ObservableObject {
         let photo = await takePhoto()
         if photo == nil {
             notice = activeFrameSource == .rayBan
-                ? "Brille konnte kein Foto machen – ich frage ohne Bild"
-                : "Kein Kamerabild – ich frage ohne Bild"
+                ? "Glasses could not take a photo – asking without an image"
+                : "No camera image – asking without an image"
         }
         return photo
     }
 
-    /// Frisches Foto aufnehmen und als „Foto von eben“ merken. Erst die Brille – kann sie gerade nicht,
-    /// springt (bei offener App) die iPhone-Kamera ein.
+    /// Take a fresh photo and remember it as "the photo from just now". Glasses first – if they can't right now,
+    /// the iPhone camera steps in (if the app is open).
     private func takePhoto() async -> Data? {
         var captured = await activeSource.capturePhoto()
         if captured == nil, activeFrameSource == .rayBan, let fallback = await iPhoneFallbackPhoto() {
-            notice = "Brille nicht bereit – Foto mit der iPhone-Kamera"
+            notice = "Glasses not ready – photo with the iPhone camera"
             captured = fallback
         }
         guard let photo = captured else { return nil }
         lastPhoto = (photo, Date())
-        transcript.append(TranscriptMessage(role: .system, text: "📸 Foto an Claude"))
+        transcript.append(TranscriptMessage(role: .system, text: "📸 Photo sent to Claude"))
         return photo
     }
 
-    /// Ersatz-Foto mit der iPhone-Kamera (nur wenn die App im Vordergrund ist – sonst sperrt iOS die Kamera)
+    /// Fallback photo with the iPhone camera (only when the app is in the foreground – otherwise iOS blocks the camera)
     private func iPhoneFallbackPhoto() async -> Data? {
         guard UIApplication.shared.applicationState == .active else { return nil }
         let wasRunning = cameraManager.isRunning
         if !wasRunning {
             guard (try? cameraManager.start()) != nil else { return nil }
-            // Kamera kurz anlaufen und belichten lassen (max. 2 s)
+            // Let the camera start up and expose briefly (max. 2 s)
             for _ in 0..<20 where !cameraManager.isRunning {
                 try? await Task.sleep(nanoseconds: 100_000_000)
             }
@@ -655,13 +655,13 @@ final class SessionViewModel: ObservableObject {
         return photo
     }
 
-    /// Ohne PC: direkt an die Claude-API; Handy-Aktionen und Fotos laufen lokal
+    /// No PC: directly to the Claude API; phone actions and photos run locally
     private func sendDirect(text: String, image: Data?) async {
         do {
             let answer = try await directClient.ask(text, image: image, mode: modeManager.activeMode, config: config,
                                                     memory: config.memoryEnabled ? memory.texts : nil) { [weak self] name, input in
                 await self?.executeDirectTool(name: name, input: input)
-                    ?? DirectClaudeClient.ToolOutput(text: "App nicht verfügbar", isError: true)
+                    ?? DirectClaudeClient.ToolOutput(text: "App not available", isError: true)
             }
             transcript.append(TranscriptMessage(role: .assistant, text: answer.text, toolCalls: answer.toolsUsed))
             finishProcessing()
@@ -676,12 +676,12 @@ final class SessionViewModel: ObservableObject {
         switch name {
         case "take_photo":
             guard let photo = await takePhoto() else {
-                return DirectClaudeClient.ToolOutput(text: "Kein Kamerabild verfügbar (Brille nicht bereit oder iPhone-Kamera aus)", isError: true)
+                return DirectClaudeClient.ToolOutput(text: "No camera image available (glasses not ready or iPhone camera off)", isError: true)
             }
-            return DirectClaudeClient.ToolOutput(text: "Aktuelles Foto", imageJPEG: photo)
+            return DirectClaudeClient.ToolOutput(text: "Current photo", imageJPEG: photo)
         case "phone_action":
             guard let kind = (input["action"] as? String).flatMap(PhoneAction.Kind.init(rawValue:)) else {
-                return DirectClaudeClient.ToolOutput(text: "Unbekannte Aktion", isError: true)
+                return DirectClaudeClient.ToolOutput(text: "Unknown action", isError: true)
             }
             let action = PhoneAction(
                 id: UUID().uuidString, kind: kind,
@@ -699,28 +699,28 @@ final class SessionViewModel: ObservableObject {
             return DirectClaudeClient.ToolOutput(text: result.message, isError: !result.ok)
         case "remember":
             guard config.memoryEnabled, let saved = memory.add(input["fact"] as? String ?? "") else {
-                return DirectClaudeClient.ToolOutput(text: "Nichts gespeichert (leer oder Gedächtnis aus)", isError: true)
+                return DirectClaudeClient.ToolOutput(text: "Nothing saved (empty or memory off)", isError: true)
             }
             directClient.acknowledgeMemory(memory.texts)
-            transcript.append(TranscriptMessage(role: .system, text: "🧠 Gemerkt: \(saved)"))
-            return DirectClaudeClient.ToolOutput(text: "Gemerkt – \(memory.items.count) Einträge im Gedächtnis.")
+            transcript.append(TranscriptMessage(role: .system, text: "🧠 Remembered: \(saved)"))
+            return DirectClaudeClient.ToolOutput(text: "Remembered – \(memory.items.count) entries in memory.")
         case "forget":
             let removed = memory.forget(matching: input["fact"] as? String ?? "")
-            guard !removed.isEmpty else { return DirectClaudeClient.ToolOutput(text: "Dazu ist nichts gespeichert.") }
+            guard !removed.isEmpty else { return DirectClaudeClient.ToolOutput(text: "Nothing is saved about that.") }
             directClient.acknowledgeMemory(memory.texts)
-            transcript.append(TranscriptMessage(role: .system, text: "🧠 Vergessen: \(removed.joined(separator: ", "))"))
-            return DirectClaudeClient.ToolOutput(text: "Gelöscht: \(removed.joined(separator: " | "))")
+            transcript.append(TranscriptMessage(role: .system, text: "🧠 Forgotten: \(removed.joined(separator: ", "))"))
+            return DirectClaudeClient.ToolOutput(text: "Deleted: \(removed.joined(separator: " | "))")
         default:
-            return DirectClaudeClient.ToolOutput(text: "Unbekanntes Werkzeug \(name)", isError: true)
+            return DirectClaudeClient.ToolOutput(text: "Unknown tool \(name)", isError: true)
         }
     }
 
     private func sendViaGateway(text: String, image: Data?) async {
         let mode = modeManager.activeMode
-        // Modus-Kontext nur beim Wechsel mitschicken (die Konversation merkt ihn sich)
-        var prefix = lastGatewayMode == mode.id ? "" : "[Modus „\(mode.name)“: \(mode.systemPrompt)]\n\n"
+        // Only send the mode context when it changes (the conversation remembers it)
+        var prefix = lastGatewayMode == mode.id ? "" : "[Mode \"\(mode.name)\": \(mode.systemPrompt)]\n\n"
         lastGatewayMode = mode.id
-        // Gedächtnis einmal pro Gespräch (das Gateway merkt sich den Verlauf); Merken geht dort nur in der App
+        // Memory once per conversation (the gateway remembers the history); remembering only works in the app there
         if config.memoryEnabled, !gatewayMemorySent, !memory.items.isEmpty {
             prefix = MemoryStore.promptBlock(memory.texts) + "\n" + prefix
         }
@@ -759,7 +759,7 @@ final class SessionViewModel: ObservableObject {
         if state == .thinking { state = restingState }
     }
 
-    /// Früher blieb die App ohne Antwort für immer bei „Denkt nach“ hängen.
+    /// The app used to get stuck on "Thinking" forever without a reply.
     private func armWatchdog(replyTimeout: Bool) {
         watchdog?.cancel()
         let delay = replyTimeout ? self.replyTimeout : ackTimeout
@@ -767,30 +767,30 @@ final class SessionViewModel: ObservableObject {
             try? await Task.sleep(nanoseconds: delay)
             guard !Task.isCancelled, let self, self.isProcessing else { return }
             self.errorMessage = replyTimeout
-                ? "Keine Antwort von Claude – läuft Claude Code noch? Im Terminal nach Freigaben schauen."
-                : "Nachricht nicht angekommen – läuft Claude Code mit dem Channel?"
+                ? "No reply from Claude – is Claude Code still running? Check the terminal for approvals."
+                : "Message did not arrive – is Claude Code running with the channel?"
             self.finishProcessing()
         }
     }
 
-    // MARK: - Foto auf Anfrage (Tool request_photo)
+    // MARK: - Photo on request (tool request_photo)
 
     private func handleCaptureRequest(id: String, reason: String?) async {
-        notice = "📸 Claude macht ein Foto" + (reason.map { ": \($0)" } ?? "")
+        notice = "📸 Claude is taking a photo" + (reason.map { ": \($0)" } ?? "")
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         let photo = await takePhoto()
-        if photo == nil { notice = "Foto nicht möglich – Brille bereit?" }
+        if photo == nil { notice = "Photo not possible – glasses ready?" }
         do {
-            // Auch ohne Foto antworten – sonst wartet Claude vergeblich
+            // Reply even without a photo – otherwise Claude waits in vain
             try await bridge.send(.init(id: "photo-\(UUID().uuidString.prefix(8))",
-                                        text: photo == nil ? "(Foto nicht möglich – Kamera nicht bereit)" : "",
+                                        text: photo == nil ? "(Photo not possible – camera not ready)" : "",
                                         source: activeFrameSource, mode: modeManager.activeMode, image: photo, inReplyTo: id))
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    // MARK: - Handy-Aktionen (Tool phone_action)
+    // MARK: - Phone actions (tool phone_action)
 
     private func handlePhoneAction(_ action: PhoneAction) async {
         let result = await phoneActions.handle(action)
@@ -812,45 +812,45 @@ final class SessionViewModel: ObservableObject {
 
     func dismissAction() {
         phoneActions.dismissConfirmation()
-        transcript.append(TranscriptMessage(role: .system, text: "⛔ Abgebrochen"))
+        transcript.append(TranscriptMessage(role: .system, text: "⛔ Cancelled"))
     }
 
-    // MARK: - Gedächtnis
+    // MARK: - Memory
 
-    /// Merkliste an Claude am PC schicken (nur Channel; Direkt und Gateway bekommen sie mit der Frage)
+    /// Send the memory list to Claude on the PC (channel only; direct and gateway get it with the question)
     private func syncMemory() {
         gatewayMemorySent = false
         Task {
             do {
                 try await bridge.sendMemory(memory.texts, enabled: config.memoryEnabled)
             } catch {
-                print("[Gedächtnis] Abgleich mit dem PC fehlgeschlagen: \(error.localizedDescription)")
+                print("[Memory] Sync with the PC failed: \(error.localizedDescription)")
             }
         }
     }
 
-    /// Claude am PC hat sich etwas gemerkt oder vergessen
+    /// Claude on the PC remembered or forgot something
     private func applyMemoryFromPC(op: String, items: [String]) {
         guard config.memoryEnabled else { return }
         switch op {
         case "add":
             items.forEach { memory.add($0, notify: false) }
-            transcript.append(TranscriptMessage(role: .system, text: "🧠 Gemerkt: \(items.joined(separator: ", "))"))
+            transcript.append(TranscriptMessage(role: .system, text: "🧠 Remembered: \(items.joined(separator: ", "))"))
         case "remove":
             memory.remove(texts: items, notify: false)
-            transcript.append(TranscriptMessage(role: .system, text: "🧠 Vergessen: \(items.joined(separator: ", "))"))
+            transcript.append(TranscriptMessage(role: .system, text: "🧠 Forgotten: \(items.joined(separator: ", "))"))
         default:
             break
         }
     }
 
-    // MARK: - Freigaben (Permission-Relay)
+    // MARK: - Approvals (permission relay)
 
     private func handlePermissionRequest(_ request: PermissionRequest) {
         pendingPermission = request
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
-        // Freihändig: Frage vorlesen, danach mit „ja“/„nein“ antworten
-        let question = "Claude möchte \(request.toolName) ausführen. \(request.description). Erlauben?"
+        // Hands-free: read the question aloud, then answer with "yes"/"no"
+        let question = "Claude wants to run \(request.toolName). \(request.description). Allow?"
         speak(question, audioPath: nil)
     }
 
@@ -858,27 +858,27 @@ final class SessionViewModel: ObservableObject {
         pendingPermission = nil
         do {
             try await bridge.sendPermission(requestId: request.id, allow: allow)
-            transcript.append(TranscriptMessage(role: .system, text: allow ? "✅ \(request.toolName) erlaubt" : "⛔ \(request.toolName) abgelehnt"))
+            transcript.append(TranscriptMessage(role: .system, text: allow ? "✅ \(request.toolName) allowed" : "⛔ \(request.toolName) denied"))
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private static let yesWords = ["ja", "jawohl", "jo", "erlauben", "erlaube", "okay", "ok", "klar", "mach", "yes", "gerne", "anrufen", "senden", "los"]
-    private static let noWords = ["nein", "nö", "ne", "nicht", "ablehnen", "lehne", "stopp", "stop", "no", "abbrechen"]
+    private static let yesWords = ["ja", "jawohl", "jo", "erlauben", "erlaube", "okay", "ok", "klar", "mach", "yes", "gerne", "anrufen", "senden", "los", "yeah", "yep", "sure", "allow", "approve", "go", "call", "send", "please"]
+    private static let noWords = ["nein", "nö", "ne", "nicht", "ablehnen", "lehne", "stopp", "stop", "no", "abbrechen", "nope", "deny", "reject", "cancel", "never"]
 
-    /// „Ja“/„Nein“ aus einer gesprochenen Antwort lesen (nil = unklar)
+    /// Read "yes"/"no" from a spoken answer (nil = unclear)
     static func interpretYesNo(_ text: String) -> Bool? {
         let words = text.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
         let saysNo = words.contains { noWords.contains($0) }
         let saysYes = words.contains { yesWords.contains($0) }
-        if saysNo { return false } // im Zweifel ablehnen
+        if saysNo { return false } // when in doubt, deny
         return saysYes ? true : nil
     }
 
-    // MARK: - Verlauf
+    // MARK: - History
 
     func resetConversation() {
         transcript.removeAll()

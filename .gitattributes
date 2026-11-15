@@ -1,4 +1,4 @@
-# Windows-Skripte mit CRLF, damit cmd.exe und PowerShell 5.1 sie sicher lesen
+# Windows scripts with CRLF so cmd.exe and PowerShell 5.1 read them reliably
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
 *.sh text eol=lf

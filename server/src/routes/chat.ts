@@ -9,9 +9,9 @@ import type { RequestQueue } from "../middleware.js";
 import type { ChatResponse } from "../types.js";
 import { validateChatRequest } from "../validation.js";
 
-// POST /chat – Vertrag mit der iOS-App:
+// POST /chat – contract with the iOS app:
 //   Body:    { text, images?: string[] (Base64), conversation_id? }
-//   Antwort: { text, tool_calls: [{ name, result }], conversation_id }
+//   Response: { text, tool_calls: [{ name, result }], conversation_id }
 
 export function createChatRouter(
   claudeClient: ClaudeClient,
@@ -31,8 +31,8 @@ export function createChatRouter(
     const id = conversations.resolveId(conversationId);
 
     try {
-      // History erst bei Ausführung lesen – so sieht eine wartende Anfrage
-      // auch die Runde, die direkt vor ihr in derselben Konversation lief.
+      // Read the history only at execution time - so a waiting request
+      // also sees the turn that ran right before it in the same conversation.
       const result = await requestQueue.enqueue(() =>
         claudeClient.chat(conversations.getHistory(id), text, images)
       );
@@ -51,8 +51,8 @@ export function createChatRouter(
       };
       res.json(response);
     } catch (err) {
-      // Details (inkl. SDK-Fehlertext) nur ins Log, an den Client nur neutral
-      console.error(c.label("[Chat]") + c.error(" Anfrage fehlgeschlagen:"), err);
+      // Details (incl. SDK error text) only go to the log, the client only gets a neutral message
+      console.error(c.label("[Chat]") + c.error(" Request failed:"), err);
       const { status, message } = describeChatError(err);
       sendError(res, status, message);
     }

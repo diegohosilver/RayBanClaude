@@ -1,8 +1,8 @@
 import CoreLocation
 import Foundation
 
-/// Einmalige Standortabfrage für „Wo bin ich?“ und „Merk dir, wo ich geparkt habe“.
-/// Nur auf Zuruf – die App verfolgt den Standort nie im Hintergrund.
+/// One-time location request for “Where am I?” and “Remember where I parked”.
+/// On demand only – the app never tracks the location in the background.
 @MainActor
 final class LocationProvider: NSObject {
     private let manager = CLLocationManager()
@@ -16,7 +16,7 @@ final class LocationProvider: NSObject {
         manager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
     }
 
-    /// Lesbare Adresse („Hauptstraße 5, 10115 Berlin“) – ohne Adresse die Koordinaten
+    /// Readable address (“5 Main Street, 10115 Berlin”) – the coordinates if there is no address
     func currentAddress() async throws -> String {
         if manager.authorizationStatus == .notDetermined {
             await withCheckedContinuation { continuation in
@@ -46,12 +46,12 @@ final class LocationProvider: NSObject {
 
     private static func address(for location: CLLocation) async -> String {
         let fallback = String(format: "%.5f, %.5f", location.coordinate.latitude, location.coordinate.longitude)
-        guard let mark = try? await CLGeocoder().reverseGeocodeLocation(location, preferredLocale: Locale(identifier: "de_DE")).first else {
+        guard let mark = try? await CLGeocoder().reverseGeocodeLocation(location, preferredLocale: Locale(identifier: "en_US")).first else {
             return fallback
         }
         let street = [mark.thoroughfare, mark.subThoroughfare].compactMap { $0 }.joined(separator: " ")
         let city = [mark.postalCode, mark.locality].compactMap { $0 }.joined(separator: " ")
-        // Name nur, wenn er mehr sagt als die Straße (z. B. „Parkhaus am Markt“)
+        // Name only if it says more than the street (e.g. “Market Square Parking Garage”)
         let name = mark.name.flatMap { $0 == street || $0.isEmpty ? nil : $0 }
         let parts = [name, street.isEmpty ? nil : street, city.isEmpty ? nil : city].compactMap { $0 }
         return parts.isEmpty ? fallback : parts.joined(separator: ", ")
@@ -83,8 +83,8 @@ enum LocationError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .denied: return "Kein Zugriff auf den Standort – in den iOS-Einstellungen für RayBan Claude erlauben"
-        case .unavailable: return "Standort gerade nicht verfügbar – iPhone kurz entsperren oder später nochmal"
+        case .denied: return "No access to location – allow it in iOS Settings for RayBan Claude"
+        case .unavailable: return "Location currently unavailable – briefly unlock the iPhone or try again later"
         }
     }
 }

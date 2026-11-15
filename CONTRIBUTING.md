@@ -1,28 +1,28 @@
-# Mitmachen
+# Contributing
 
-Danke fürs Mithelfen! Fehler und Ideen gern als [Issue](https://github.com/MoinMornhart/RayBanClaude/issues).
+Thanks for helping out! Bugs and ideas are welcome as an [Issue](https://github.com/MoinMornhart/RayBanClaude/issues).
 
-## Entwicklungsumgebung
+## Development environment
 
-| Teil | Werkzeuge | Befehle |
+| Part | Tools | Commands |
 |---|---|---|
 | Channel (`channel/`) | Bun ≥ 1.1 | `bun install` · `bun run typecheck` · `bun test` · `bun audit` |
 | Gateway (`server/`) | Node ≥ 20 | `npm ci` · `npm run build` · `npm audit` |
-| iPhone-App (`ios/`) | macOS, Xcode ≥ 26.4, XcodeGen | `xcodegen generate` · in Xcode bauen – oder einfach pushen, GitHub Actions baut die IPA |
+| iPhone app (`ios/`) | macOS, Xcode ≥ 26.4, XcodeGen | `xcodegen generate` · build in Xcode – or just push, GitHub Actions builds the IPA |
 
-Eigene Signier-Werte gehören in `ios/Secrets.xcconfig` (nicht committen).
+Your own signing values belong in `ios/Secrets.xcconfig` (do not commit).
 
-## Regeln
+## Rules
 
-- Texte, Kommentare und Oberfläche auf Deutsch.
-- TypeScript: keine Magic Numbers, keine `for`/`while`-Schleifen und kein `switch` (Daten statt Logik),
-  jede Regex mit Beschreibung, Beispiel und regex101-Link (siehe `channel/lib/patterns.ts`).
-- Sicherheit: keine Secrets im Code, Eingaben an der Grenze validieren (Whitelist),
-  keine internen Fehlerdetails an Clients, neue Routen mit passender Zugriffsstufe.
-- Vor einem Pull Request: Tests grün, `bun audit`/`npm audit` ohne Funde, kurzer OWASP-Check in der PR-Beschreibung.
+- Texts, comments and UI in English.
+- TypeScript: no magic numbers, no `for`/`while` loops and no `switch` (data instead of logic),
+  every regex with a description, example and regex101 link (see `channel/lib/patterns.ts`).
+- Security: no secrets in code, validate input at the boundary (allowlist),
+  no internal error details to clients, new routes with the appropriate access level.
+- Before a pull request: tests green, `bun audit`/`npm audit` with no findings, short OWASP check in the PR description.
 
-## Fehler melden
+## Reporting bugs
 
-Bitte angeben: Windows-/macOS-Version, iPhone- und iOS-Version, Brillenmodell und Firmware,
-Ausgabe des Channel-Servers (im Claude-Code-Terminal bzw. `claude --debug`) und Schritte zum Nachstellen.
-**Keine Tokens oder API-Keys** in Issues posten.
+Please include: Windows/macOS version, iPhone and iOS version, glasses model and firmware,
+output of the channel server (in the Claude Code terminal or `claude --debug`) and steps to reproduce.
+**Do not post tokens or API keys** in issues.

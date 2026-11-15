@@ -1,5 +1,5 @@
-# Geprüfte Fehlalarme von gitleaks (nur einzelne Fundstellen, kein Pauschal-Ignorieren).
+# Reviewed false positives from gitleaks (individual findings only, no blanket ignoring).
 #
-# Leere Zeile "ELEVENLABS_API_KEY=" gefolgt von der öffentlichen ElevenLabs-Stimmen-ID
-# "Charlotte" in der nächsten Zeile – kein Geheimnis. Seit dem Folge-Commit steht dort ein Platzhalter.
+# Empty line "ELEVENLABS_API_KEY=" followed by the public ElevenLabs voice ID
+# "Charlotte" on the next line – not a secret. Since the follow-up commit a placeholder is there.
 8a9f5b2a9e397b96dc85d9c92cf2398ffbf0590a:channel/skills/configure/SKILL.md:generic-api-key:25

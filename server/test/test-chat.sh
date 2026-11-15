@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Testskript für das RayBan Claude Gateway (läuft auch unter Windows-Git-Bash)
+# Test script for the RayBan Claude Gateway (also runs under Windows Git Bash)
 #
-# Aufruf:
+# Usage:
 #   ./test-chat.sh [BASE_URL] [TOKEN]
 #   GATEWAY_TOKEN=<token> ./test-chat.sh http://192.168.1.20:18790
 #
-# Ohne Token-Angabe wird ~/.raybanclaude/gateway-token gelesen (falls vorhanden).
+# Without a token argument, ~/.raybanclaude/gateway-token is read (if present).
 
 set -u
 
@@ -18,11 +18,11 @@ if [ -z "$TOKEN" ] && [ -f "$TOKEN_FILE" ]; then
 fi
 
 if [ -z "$TOKEN" ]; then
-  echo "Fehler: Kein Gateway-Token. Als 2. Argument oder per GATEWAY_TOKEN übergeben." >&2
+  echo "Error: No gateway token. Pass it as the 2nd argument or via GATEWAY_TOKEN." >&2
   exit 1
 fi
 
-# JSON hübsch ausgeben: jq, sonst node, sonst unverändert
+# Pretty-print JSON: jq, else node, else unchanged
 pretty() {
   if command -v jq >/dev/null 2>&1; then
     jq .
@@ -35,29 +35,29 @@ pretty() {
 
 AUTH_HEADER="Authorization: Bearer ${TOKEN}"
 
-echo "=== Health (öffentlich) ==="
+echo "=== Health (public) ==="
 curl -s "$BASE_URL/health" | pretty
 echo ""
 
-echo "=== Health-Details ==="
+echo "=== Health details ==="
 curl -s -H "$AUTH_HEADER" "$BASE_URL/health/details" | pretty
 echo ""
 
-echo "=== Werkzeuge ==="
+echo "=== Tools ==="
 curl -s -H "$AUTH_HEADER" "$BASE_URL/tools" | pretty
 echo ""
 
-echo "=== Chat (nur Text) ==="
+echo "=== Chat (text only) ==="
 curl -s -X POST "$BASE_URL/chat" \
   -H "$AUTH_HEADER" \
   -H "Content-Type: application/json" \
-  -d '{"text": "Hallo! Welche Werkzeuge hast du? Bitte kurz aufzählen."}' | pretty
+  -d '{"text": "Hello! Which tools do you have? Please list them briefly."}' | pretty
 echo ""
 
-echo "=== Konfiguration ==="
+echo "=== Configuration ==="
 curl -s -H "$AUTH_HEADER" "$BASE_URL/config" | pretty
 echo ""
 
-echo "=== MCP-Status ==="
+echo "=== MCP status ==="
 curl -s -H "$AUTH_HEADER" "$BASE_URL/tools/health" | pretty
 echo ""

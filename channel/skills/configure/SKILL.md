@@ -1,42 +1,42 @@
 ---
 name: raybanclaude-configure
-description: RayBan Claude Channel einrichten – Kopplung mit dem iPhone, optionale ElevenLabs-Stimme und Port
+description: Set up the RayBan Claude channel – pairing with the iPhone, optional ElevenLabs voice and port
 ---
 
-# RayBan Claude Channel einrichten
+# Set up the RayBan Claude channel
 
-Der Channel speichert seine Einstellungen in `~/.claude/channels/raybanclaude/`
+The channel stores its settings in `~/.claude/channels/raybanclaude/`
 (Windows: `%USERPROFILE%\.claude\channels\raybanclaude\`).
 
-## Koppeln (empfohlen)
+## Pairing (recommended)
 
-1. Claude Code mit dem Channel starten:
+1. Start Claude Code with the channel:
    `claude --dangerously-load-development-channels server:raybanclaude`
-2. Dashboard öffnen: <http://localhost:18790>
-3. Den QR-Code mit der iPhone-Kamera scannen → „In RayBan Claude öffnen“ → bestätigen.
+2. Open the dashboard: <http://localhost:18790>
+3. Scan the QR code with the iPhone camera → “Open in RayBan Claude” → confirm.
 
-Handy und PC müssen im selben WLAN sein. Unter Windows beim ersten Start die
-Firewall-Abfrage für **private Netzwerke** erlauben.
+Phone and PC must be on the same Wi-Fi. On Windows, allow the firewall prompt for
+**private networks** on first start.
 
-## Optionale Einstellungen (`.env` im Ordner oben)
+## Optional settings (`.env` in the folder above)
 
 ```
-# Natürlichere Stimme (kostenpflichtig, ohne Key spricht das iPhone kostenlos)
-ELEVENLABS_API_KEY=<dein-elevenlabs-key>
+# More natural voice (paid; without a key the iPhone speaks for free)
+ELEVENLABS_API_KEY=<your-elevenlabs-key>
 
-# Stimme (Standard: Charlotte)
+# Voice (default: Charlotte)
 ELEVENLABS_VOICE_ID=XB0fDUnXU5powFXDhCwa
 
-# Anderer Port (Standard 18790)
+# Different port (default 18790)
 RAYBANCLAUDE_PORT=18790
 
-# Dashboard bei jedem Start öffnen (1) bzw. nie öffnen (RAYBANCLAUDE_NO_BROWSER=1)
+# Open the dashboard on every start (1) or never open it (RAYBANCLAUDE_NO_BROWSER=1)
 RAYBANCLAUDE_OPEN_DASHBOARD=0
 ```
 
-ElevenLabs-Key und Stimme lassen sich auch direkt im Dashboard setzen.
+The ElevenLabs key and voice can also be set directly in the dashboard.
 
-## Token zurücksetzen
+## Reset the token
 
-Datei `.channel-token` im Ordner oben löschen und Claude neu starten – danach
-den QR-Code neu scannen.
+Delete the `.channel-token` file in the folder above and restart Claude – then
+scan the QR code again.

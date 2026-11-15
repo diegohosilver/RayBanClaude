@@ -1,60 +1,60 @@
-# Stand: RayBan Claude (Übergabe 2026-10-24)
+# Status: RayBan Claude (handover 2026-10-24)
 
-## Was es ist
-Macht Philips Ray-Ban Meta (Gen 2) bzw. das iPhone zu Augen und Ohren von Claude – „wie Meta AI, nur mit Claude“. iPhone-App (Weckwort „Hey Claude“/„Claudi“) spricht über WLAN oder Tailscale mit Claude Code (Claude-Abo) auf dem Windows-PC; ohne PC notfalls direkt über die Claude-API. Kopie von `mrdulasolutions/visionclaude`, umbenannt in RayBan Claude und auf Ray-Ban Meta Gen 2 ausgerichtet.
+## What it is
+Turns Philip's Ray-Ban Meta (Gen 2) or the iPhone into Claude's eyes and ears – "like Meta AI, but with Claude". The iPhone app (wake word "Hey Claude"/"Claudi") talks over Wi-Fi or Tailscale to Claude Code (Claude subscription) on the Windows PC; without a PC, as a fallback, directly via the Claude API. A copy of `mrdulasolutions/visionclaude`, renamed to RayBan Claude and tailored to Ray-Ban Meta Gen 2.
 
-## Ziel
-- Die Brille soll sich anfühlen wie Meta AI, nur mit Claude.
-- Kamera nur auf Zuruf – kein Dauerfilmen; ein Foto nur, wenn die Frage eins braucht.
-- Brille hat Vorrang für Kamera, Mikrofon und Lautsprecher; das iPhone springt nur ein.
+## Goal
+- The glasses should feel like Meta AI, but with Claude.
+- Camera only on request – no continuous filming; a photo only when the question needs one.
+- The glasses take priority for camera, microphone and speakers; the iPhone only steps in.
 
-## Aktueller Stand
-Auf `main` (Version **2.1.0**, 24.10.; v2.0.0 vom 19.10. ist das letzte veröffentlichte Release):
-- **iOS-App** (SwiftUI, Meta DAT SDK 1.0.1, Deutsch): Weckwort freihändig auch bei gesperrtem iPhone, Kamera nur auf Zuruf, Brille hat Vorrang vor iPhone/anderen Headsets, Handy-Aktionen (Timer, Wecker, Erinnerungen, Fotos, Standort; Anruf/Nachricht/Navigation immer mit Bestätigung), Gedächtnis, 11 Experten-Modi, QR-Kopplung, Direkt-Modus mit API-Key nur als Notlösung. Baut in GitHub Actions; `.ipa` ohne Mac per Sideloadly (`docs/IPHONE-OHNE-MAC.md`).
-- **Unterwegs übers Claude-Abo:** App erreicht den PC per Tailscale auch über mobile Daten.
-- **Channel-Server** (`channel/`, Bun, MCP-Channel für Claude Code) mit Dashboard unter `http://localhost:18790` (nur lokal), Gesprächsverlauf und Gedächtnis-Kopie auf dem PC, Brücke zur Claude-Desktop-App (Werkzeug „Brille“).
-- **Gateway-Server** (`server/`, Node/TS) für Betrieb ohne Rückfragen; standardmäßig nur lesende MCP-Werkzeuge.
-- **Windows-Installer** `RayBanClaude-Setup.exe` (Inno Setup, Release mit Prüfsumme): installiert Bun + Claude Code, Firewall nur für Heim-WLAN und Tailscale, Verknüpfung mit der Claude-App; dazu `setup.cmd`/`start.cmd`.
-- **Projektseite** (GitHub Pages, `docs/index.html`, strikte CSP) und Dashboard im Jarvis-Look; 39 behobene Bugs in `docs/BUGFIXES.md`.
+## Current state
+On `main` (version **2.1.0**, 24.10.; v2.0.0 from 19.10. is the latest published release):
+- **iOS app** (SwiftUI, Meta DAT SDK 1.0.1, English UI): hands-free wake word even with the iPhone locked, camera only on request, glasses take priority over iPhone/other headsets, phone actions (timer, alarm, reminders, photos, location; call/message/navigation always with confirmation), memory, 11 expert modes, QR pairing, direct mode with API key only as a fallback. Builds in GitHub Actions; `.ipa` without a Mac via Sideloadly (`docs/IPHONE-OHNE-MAC.md`).
+- **On the go via the Claude subscription:** the app reaches the PC via Tailscale over mobile data too.
+- **Channel server** (`channel/`, Bun, MCP channel for Claude Code) with dashboard at `http://localhost:18790` (local only), conversation history and memory copy on the PC, bridge to the Claude desktop app (tool "glasses").
+- **Gateway server** (`server/`, Node/TS) for operation without confirmations; by default only read-only MCP tools.
+- **Windows installer** `RayBanClaude-Setup.exe` (Inno Setup, release with checksum): installs Bun + Claude Code, firewall only for home Wi-Fi and Tailscale, link with the Claude app; plus `setup.cmd`/`start.cmd`.
+- **Project page** (GitHub Pages, `docs/index.html`, strict CSP) and dashboard in Jarvis look; 39 bugs fixed in `docs/BUGFIXES.md`.
 
-Neu in 2.1.0 (aus den Zweigen vom 20.10., am 24.10. nach `main` übernommen):
-- **iPhone-App im Jarvis-Look** (aus `claude/zealous-pascal-dfcf80`): HUD-Farben (Nachtblau, Cyan, Gold) zentral in `HUDStyle.swift`, Reaktor-Ringe um den Mikrofon-Knopf (still bei „Bewegung reduzieren“). Nur Optik, Bedienlogik unverändert.
-- **Gesten der Brille** (aus `claude/reverent-moore-d93bfa`, Metas experimentelles Modul `MWDATInputs`): Doppeltipp aufs Touchpad = Claude hört sofort zu, Capture-Taste kurz = Foto + „Was siehst du?“, Zurück = Abbruch. Mit Gesten bleibt die Brillen-Sitzung offen, die Kamera kommt pro Foto dazu und geht 15 s danach wieder aus. Schalter *Einstellungen → Ray-Ban Meta → Gesten (experimentell)*, **standardmäßig aus** – dann wie vorher: Sitzung nur fürs Foto.
-- Beide Zweige zusammengeführt (Konflikt in `SettingsView.swift` gelöst), iOS-Build grün ohne Warnungen, Simulator-Rauchtest grün.
+New in 2.1.0 (from the branches of 20.10., merged into `main` on 24.10.):
+- **iPhone app in Jarvis look** (from `claude/zealous-pascal-dfcf80`): HUD colors (midnight blue, cyan, gold) centrally in `HUDStyle.swift`, reactor rings around the microphone button (still with "Reduce Motion"). Visuals only, controls unchanged.
+- **Glasses gestures** (from `claude/reverent-moore-d93bfa`, Meta's experimental module `MWDATInputs`): double-tap on the touchpad = Claude listens right away, Capture button short press = photo + "What do you see?", Back = cancel. With gestures the glasses session stays open, the camera is added per photo and turns off again 15 s later. Switch *Settings → Ray-Ban Meta → Gestures (experimental)*, **off by default** – then as before: session only for the photo.
+- Both branches merged (conflict in `SettingsView.swift` resolved), iOS build green without warnings, simulator smoke test green.
 
-## Zuletzt gemacht
-- 2026-10-24: Version 2.1.0 auf `main`: iPhone-App im Jarvis-Look + Gesten der Brille (standardmäßig aus); Übergabe aus den lokalen Chats (18.–20.10.) eingearbeitet.
-- 2026-10-24: Cloud-Start-Hook (Philips Skills in Cloud-Sitzungen).
-- 2026-10-20: Gesten (Doppeltipp, Capture-Taste) und iPhone-App im Jarvis-Look auf eigenen Zweigen gebaut, Builds grün.
-- 2026-10-19: Release v2.0.0. Projektseite + Dashboard im Jarvis-Look; Installer-Fix; „wie Meta AI“ (Kamera auf Zuruf, Hosentaschen-Modus); Brille hat Vorrang; Verknüpfung Claude-App; unterwegs übers Abo (Tailscale) + Gedächtnis; Weckwort, Handy-Aktionen, Direkt-Modus; Sicherheits-Check.
-- 2026-10-18: Import als RayBan Claude, Sicherheitslücken behoben, Windows-Support, Meta DAT 1.0.1, Deutsch.
+## Done recently
+- 2026-10-24: Version 2.1.0 on `main`: iPhone app in Jarvis look + glasses gestures (off by default); handover from the local chats (18.–20.10.) incorporated.
+- 2026-10-24: Cloud start hook (Philip's skills in cloud sessions).
+- 2026-10-20: Gestures (double-tap, Capture button) and iPhone app in Jarvis look built on separate branches, builds green.
+- 2026-10-19: Release v2.0.0. Project page + dashboard in Jarvis look; installer fix; "like Meta AI" (camera on request, pocket mode); glasses take priority; link with the Claude app; on the go via the subscription (Tailscale) + memory; wake word, phone actions, direct mode; security check.
+- 2026-10-18: Import as RayBan Claude, security holes fixed, Windows support, Meta DAT 1.0.1, German.
 
-## Offen / Nächste Schritte
-- **Nichts davon ist auf echter Hardware (Brille + iPhone) getestet** – wichtigster offener Punkt; Hintergrund-Zuhören ebenfalls ungetestet.
-- Gesten auf echter Brille testen (Einstellungen → Ray-Ban Meta → Gesten): Kommt die Capture-Taste bei laufender Kamera an? Macht die Brille zusätzlich ein eigenes Foto? Blockiert die offene Sitzung Meta AI? Danach entscheiden, ob sie standardmäßig an gehen.
-- Release v2.1.0 auf GitHub veröffentlichen (aus der Cloud-Sitzung nicht möglich – `gh` hat dort keine Anmeldung); die Workflows hängen Setup.exe und .ipa danach selbst an.
-- Neue Screenshots im Jarvis-Look in README (`docs/images/app-*.png`, 600 px breit) und Projektseite (eingebettet, 520 px) einbauen: liegen als Artefakt `ios-screenshots` im Workflow „iOS-Screenshots“; der Download aus der Cloud scheiterte an der Netzwerk-Freigabe (`*.blob.core.windows.net`).
-- Alte Zweige `claude/reverent-moore-d93bfa` und `claude/zealous-pascal-dfcf80` löschen (nach Philips OK).
-- Issue #1 (VibeWorks): Abhängigkeiten aktualisieren, u. a. `@anthropic-ai/sdk` 0.135 → 1.3 (Major).
-- Idee: Token-Schutz in fremden WLANs – gegenseitige Prüfung ohne Klartext-Token (App schickt Token im WLAN nur an die gespeicherte Heim-Adresse).
-- Bekannte Grenzen: Speicherleck im Meta-DAT-SDK bei Gen 2 (~4 MB/min, Meta-Issue #324) → bei langen Sitzungen App neu starten; WLAN-Verbindung nur HTTP (mit Token); Prompt-Injection über Kamerabilder nicht ganz vermeidbar.
-- Nicht möglich/noch nicht: Tippen-und-Halten am Bügel (Meta gibt Geste nicht frei), Live-Übersetzung, Musik, Mitteilungen vorlesen; Android-App fehlt.
-- Installer ist nicht kostenpflichtig signiert (SmartScreen-Warnung).
+## Open / next steps
+- **None of this has been tested on real hardware (glasses + iPhone)** – the most important open point; background listening is also untested.
+- Test gestures on real glasses (Settings → Ray-Ban Meta → Gestures): Does the Capture button arrive while the camera is running? Do the glasses additionally take a photo of their own? Does the open session block Meta AI? Then decide whether they should be on by default.
+- Publish release v2.1.0 on GitHub (not possible from the cloud session – `gh` has no login there); the workflows then attach Setup.exe and .ipa themselves.
+- Add new screenshots in Jarvis look to the README (`docs/images/app-*.png`, 600 px wide) and the project page (embedded, 520 px): they are available as the artifact `ios-screenshots` in the workflow "iOS screenshots"; the download from the cloud failed because of the network allowlist (`*.blob.core.windows.net`).
+- Delete the old branches `claude/reverent-moore-d93bfa` and `claude/zealous-pascal-dfcf80` (after Philip's OK).
+- Issue #1 (VibeWorks): update dependencies, among others `@anthropic-ai/sdk` 0.135 → 1.3 (major).
+- Idea: token protection on foreign Wi-Fi networks – mutual verification without a plain-text token (on Wi-Fi the app only sends the token to the stored home address).
+- Known limits: memory leak in the Meta DAT SDK on Gen 2 (~4 MB/min, Meta issue #324) → restart the app in long sessions; Wi-Fi connection HTTP only (with token); prompt injection via camera images cannot be fully avoided.
+- Not possible / not yet: tap and hold on the temple (Meta does not release the gesture), live translation, music, reading out notifications; Android app missing.
+- The installer is not signed with a paid certificate (SmartScreen warning).
 
-## Wichtige Infos
-- Tests/Build: `cd channel && bun test` · `cd server && npm run build` · iOS über `ios-build.yml` (XcodeGen aus `ios/project.yml`).
-- Weitere Workflows: `server-tests.yml`, `windows-installer.yml`, `ios-screenshots.yml`, `vibeworks-check.yml`.
-- Start: `start.cmd` (Claude Code mit `--dangerously-load-development-channels`, NICHT mit `--dangerously-skip-permissions`).
-- Port Channel/Dashboard: 18790. Daten am PC: `%USERPROFILE%\.claude\channels\raybanclaude` (Verlauf 30 Tage, `.env`).
-- MCP-SDK im Channel auf `~1.32` lassen (neuere handeln evtl. Protokoll 2026-07-28 aus → kein Channel).
-- TypeScript-Regeln vom Plugin *typescript-patterns-enforcer*; Regexe in `channel/lib/patterns.ts`.
-- Secrets nur in `.env` / `ios/Secrets.xcconfig` (beide ignoriert).
-- Sideloadly: Anmeldung mit der Apple-ID (= E-Mail-Adresse); eine Team-ID ist nicht nötig.
+## Important info
+- Tests/build: `cd channel && bun test` · `cd server && npm run build` · iOS via `ios-build.yml` (XcodeGen from `ios/project.yml`).
+- Other workflows: `server-tests.yml`, `windows-installer.yml`, `ios-screenshots.yml`, `vibeworks-check.yml`.
+- Start: `start.cmd` (Claude Code with `--dangerously-load-development-channels`, NOT with `--dangerously-skip-permissions`).
+- Port channel/dashboard: 18790. Data on the PC: `%USERPROFILE%\.claude\channels\raybanclaude` (history 30 days, `.env`).
+- Keep the MCP SDK in the channel on `~1.32` (newer ones may negotiate protocol 2026-07-28 → no channel).
+- TypeScript rules from the plugin *typescript-patterns-enforcer*; regexes in `channel/lib/patterns.ts`.
+- Secrets only in `.env` / `ios/Secrets.xcconfig` (both ignored).
+- Sideloadly: sign in with the Apple ID (= email address); a team ID is not needed.
 
-## Philips Vorgaben
-- Repo **öffentlich** (github.com/MoinMornhart/RayBanClaude), MIT-Lizenz.
-- Commit-Messages enden mit `Verfasst mit Claude 🤖` (vor Co-Authored-By); README-Fußzeile ebenso.
-- **Keine Update-Funktion** vorgesehen.
-- Alles auf Deutsch (Antworten, Kommentare, App-Oberfläche, Doku).
+## Philip's requirements
+- Repo **public** (github.com/MoinMornhart/RayBanClaude), MIT license.
+- Commit messages end with `Written with Claude 🤖` (before Co-Authored-By); README footer likewise.
+- **No update function** planned.
+- Everything in English (replies, comments, app interface, docs).
 
-Diese Datei wird beim Arbeiten aktuell gehalten: nach jedem größeren Schritt „Aktueller Stand“ und „Offen“ anpassen.
+This file is kept up to date while working: after every larger step adjust "Current state" and "Open".

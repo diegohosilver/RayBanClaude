@@ -1,11 +1,11 @@
-# XcodeGen-Projektbeschreibung – das .xcodeproj wird daraus erzeugt:
+# XcodeGen project description – the .xcodeproj is generated from it:
 #   brew install xcodegen && cd ios && xcodegen generate
 name: RayBanClaude
 options:
   bundleIdPrefix: com.raybanclaude
   deploymentTarget:
     iOS: "17.2"          # Mindestversion des Meta Wearables DAT SDK 1.x
-  xcodeVersion: "26.4"   # DAT SDK 1.x ist mit Swift 6.3 gebaut
+  xcodeVersion: "26.4"   # DAT SDK 1.x is built with Swift 6.3
 
 configFiles:
   Debug: Config.xcconfig
@@ -14,7 +14,7 @@ configFiles:
 packages:
   meta-wearables-dat-ios:
     url: https://github.com/facebook/meta-wearables-dat-ios
-    from: "1.0.1"        # unterstützt offiziell Ray-Ban Meta Gen 1 und Gen 2
+    from: "1.0.1"        # officially supports Ray-Ban Meta Gen 1 and Gen 2
 
 targets:
   RayBanClaude:
@@ -27,7 +27,7 @@ targets:
         product: MWDATCore
       - package: meta-wearables-dat-ios
         product: MWDATCamera
-      # Experimentell (nur Entwicklermodus/Beta-Channel): Touchpad- und Tasten-Gesten der Brille
+      # Experimental (developer mode/beta channel only): touchpad and button gestures of the glasses
       - package: meta-wearables-dat-ios
         product: MWDATInputs
     settings:

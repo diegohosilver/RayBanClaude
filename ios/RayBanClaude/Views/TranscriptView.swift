@@ -47,7 +47,7 @@ struct MessageBubble: View {
 
     private var isUser: Bool { message.role == .user }
 
-    /// Du in Gold, Claude in Cyan
+    /// You in gold, Claude in cyan
     private var roleColor: Color { isUser ? .hudGold : .hudCyan }
 
     private var bubble: some View {
@@ -56,14 +56,14 @@ struct MessageBubble: View {
             if isUser { Spacer(minLength: 60) }
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text(isUser ? "Du" : "Claude")
+                    Text(isUser ? "You" : "Claude")
                         .font(.hudMono(10, weight: .semibold))
                         .tracking(1.2)
                         .foregroundStyle(roleColor)
                         .textCase(.uppercase)
                     if isUser && !message.delivered {
                         Image(systemName: "clock").font(.system(size: 8)).foregroundStyle(Color.hudMuted)
-                            .accessibilityLabel("wird zugestellt")
+                            .accessibilityLabel("sending")
                     }
                 }
                 Text(message.text)
@@ -91,7 +91,7 @@ struct MessageBubble: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(roleColor.opacity(isUser ? 0.1 : 0.07), in: shape)
-            // Leuchtende Kante zur eigenen Seite: Claude links, du rechts
+            // Glowing edge on the speaker's own side: Claude on the left, you on the right
             .overlay(alignment: isUser ? .trailing : .leading) {
                 Rectangle().fill(roleColor).frame(width: 2).shadow(color: roleColor, radius: 3)
             }
@@ -103,7 +103,7 @@ struct MessageBubble: View {
     }
 }
 
-/// Anhang von Claude: Bilder werden mit Token geladen und angezeigt, sonst nur der Name.
+/// Attachment from Claude: images are loaded with the token and displayed, otherwise just the name.
 struct AttachmentView: View {
     let attachment: Attachment
     let request: URLRequest?

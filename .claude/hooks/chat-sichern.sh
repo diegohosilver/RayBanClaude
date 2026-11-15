@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# chat-sichern.sh - sichert den Chat-Verlauf der Claude-Code-Sitzung ins Projekt-Repo.
-# Laeuft als PreToolUse-Hook auf Bash (.claude/settings.json): Sobald Claude
-# "git push" ausfuehrt, wird vorher chats/<datum>_<sitzung>.md geschrieben und
-# committet. So ist der Chat auf GitHub, auch wenn die Cloud-Sitzung geleert wird.
+# chat-sichern.sh - saves the chat transcript of the Claude Code session into the project repo.
+# Runs as a PreToolUse hook on Bash (.claude/settings.json): as soon as Claude
+# runs "git push", chats/<date>_<session>.md is written and
+# committed first. That way the chat is on GitHub even if the cloud session is wiped.
 #
-# Abschalten pro Projekt: Datei .claude/hooks/chat-sichern-aus anlegen (z. B. bei oeffentlichen Repos).
-# Von Hand ausloesen:    bash .claude/hooks/chat-sichern.sh --jetzt
-# Bricht nie ab, blockiert nie den Push.
+# Disable per project: create the file .claude/hooks/chat-sichern-aus (e.g. for public repos).
+# Trigger manually:      bash .claude/hooks/chat-sichern.sh --jetzt
+# Never aborts, never blocks the push.
 
 EINGABE="$(cat 2>/dev/null || true)"
 export EINGABE
@@ -45,13 +45,13 @@ if not verlauf:
 sitzung = (daten.get("session_id") or os.path.splitext(os.path.basename(verlauf))[0])[:8]
 
 GEHEIM = [
-    (re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"), "[TOKEN ENTFERNT]"),
-    (re.compile(r"github_pat_[A-Za-z0-9_]{20,}"), "[TOKEN ENTFERNT]"),
-    (re.compile(r"sk-[A-Za-z0-9_-]{20,}"), "[SCHLUESSEL ENTFERNT]"),
-    (re.compile(r"xox[abpr]-[A-Za-z0-9-]{10,}"), "[TOKEN ENTFERNT]"),
-    (re.compile(r"[MN][A-Za-z\d]{23,25}\.[\w-]{6}\.[\w-]{27,}"), "[DISCORD-TOKEN ENTFERNT]"),
-    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S), "[PRIVATER SCHLUESSEL ENTFERNT]"),
-    (re.compile(r"(?i)((?:password|passwort|token|secret|api[_-]?key)\s*[=:]\s*)\S+"), r"\1[ENTFERNT]"),
+    (re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}"), "[TOKEN REMOVED]"),
+    (re.compile(r"github_pat_[A-Za-z0-9_]{20,}"), "[TOKEN REMOVED]"),
+    (re.compile(r"sk-[A-Za-z0-9_-]{20,}"), "[KEY REMOVED]"),
+    (re.compile(r"xox[abpr]-[A-Za-z0-9-]{10,}"), "[TOKEN REMOVED]"),
+    (re.compile(r"[MN][A-Za-z\d]{23,25}\.[\w-]{6}\.[\w-]{27,}"), "[DISCORD TOKEN REMOVED]"),
+    (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S), "[PRIVATE KEY REMOVED]"),
+    (re.compile(r"(?i)((?:password|passwort|token|secret|api[_-]?key)\s*[=:]\s*)\S+"), r"\1[REMOVED]"),
 ]
 def sauber(t):
     t = re.sub(r"<system-reminder>.*?</system-reminder>", "", t, flags=re.S)
@@ -97,11 +97,11 @@ ordner = os.path.join(projekt, "chats")
 os.makedirs(ordner, exist_ok=True)
 datei = os.path.join(ordner, f"{datum}_{sitzung}.md")
 name = os.path.basename(projekt)
-kopf = (f"# 💬 Chat-Verlauf {name}\n\n"
-        f"Sitzung `{sitzung}` · gestartet {start} · zuletzt gesichert "
+kopf = (f"# 💬 Chat history {name}\n\n"
+        f"Session `{sitzung}` · started {start} · last saved "
         f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-        "Automatisch beim Pushen gesichert (Hook `chat-sichern.sh`). Werkzeug-Ausgaben sind weggelassen, "
-        "erkannte Tokens und Passwörter entfernt.\n\n---\n\n")
+        "Saved automatically on push (hook `chat-sichern.sh`). Tool outputs are omitted, "
+        "detected tokens and passwords removed.\n\n---\n\n")
 with open(datei, "w", encoding="utf-8", newline="\n") as f:
     f.write(kopf + "\n\n---\n\n".join(teile) + "\n")
 
@@ -109,10 +109,10 @@ g = lambda *a: subprocess.run(["git", "-C", projekt, *a], capture_output=True, t
 g("add", "--", os.path.relpath(datei, projekt))
 if g("diff", "--cached", "--quiet", "--", os.path.relpath(datei, projekt)).returncode == 0:
     raise SystemExit(0)
-nachricht = "Chat-Verlauf gesichert"
+nachricht = "Chat history saved"
 try:
-    if "Verfasst mit Claude" in open(os.path.join(projekt, "CLAUDE.md"), encoding="utf-8").read():
-        nachricht += "\n\nVerfasst mit Claude 🤖"
+    if "Written with Claude" in open(os.path.join(projekt, "CLAUDE.md"), encoding="utf-8").read():
+        nachricht += "\n\nWritten with Claude 🤖"
 except Exception:
     pass
 g("commit", "-m", nachricht, "--", os.path.relpath(datei, projekt))

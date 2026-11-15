@@ -1,16 +1,16 @@
-Lies zuerst den Projektstand: @STAND.md
+Read the project status first: @STAND.md
 
-# RayBan Claude – Hinweise für Claude Code
+# RayBan Claude – Notes for Claude Code
 
-- Sprache: Antworten, Code-Kommentare, UI-Texte und Doku auf **Deutsch**.
-- Git-Texte: Commit-Messages enden mit der Zeile `Verfasst mit Claude 🤖` (vor dem Co-Authored-By);
-  README hat die Zeile als Fußzeile. Keine Update-Funktion vorgesehen.
-- Repo: öffentlich, https://github.com/MoinMornhart/RayBanClaude
-- TypeScript (`channel/`, `server/`): Regeln des Plugins *typescript-patterns-enforcer* einhalten
-  (keine Magic Numbers, keine Schleifen/`switch`, jede Regex mit Beispiel + regex101-Link).
-  Regexe des Channels stehen in `channel/lib/patterns.ts`.
-- Tests: `cd channel && bun test` · `cd server && npm run build` · iOS baut in GitHub Actions (`ios-build.yml`).
-- MCP-SDK im Channel bleibt auf `~1.32` – neuere Versionen könnten Protokoll 2026-07-28 aushandeln,
-  das Claude Code nicht als Channel registriert.
-- Sicherheit: keine Secrets im Code (`.env`, `ios/Secrets.xcconfig`), Eingaben per Whitelist prüfen,
-  keine internen Fehlerdetails an Clients.
+- Language: replies, code comments, UI texts and docs in **English**.
+- Git texts: commit messages end with the line `Written with Claude 🤖` (before the Co-Authored-By);
+  the README has the line as its footer. No update function is planned.
+- Repo: public, https://github.com/MoinMornhart/RayBanClaude
+- TypeScript (`channel/`, `server/`): follow the rules of the *typescript-patterns-enforcer* plugin
+  (no magic numbers, no loops/`switch`, every regex with an example + regex101 link).
+  The channel's regexes live in `channel/lib/patterns.ts`.
+- Tests: `cd channel && bun test` · `cd server && npm run build` · iOS builds in GitHub Actions (`ios-build.yml`).
+- The MCP SDK in the channel stays on `~1.32` – newer versions might negotiate protocol 2026-07-28,
+  which Claude Code does not register as a channel.
+- Security: no secrets in code (`.env`, `ios/Secrets.xcconfig`), validate input via allowlist,
+  no internal error details to clients.

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# RayBan Claude starten: Claude Code mit dem Channel + Dashboard im Browser (macOS/Linux)
+# Start RayBan Claude: Claude Code with the channel + dashboard in the browser (macOS/Linux)
 set -euo pipefail
 cd "$(dirname "$0")"
 PORT="${RAYBANCLAUDE_PORT:-18790}"
 
-command -v claude >/dev/null || { echo "Claude Code fehlt – bitte zuerst ./setup.sh ausführen."; exit 1; }
-[[ -d channel/node_modules ]] || { echo "Abhängigkeiten fehlen – bitte zuerst ./setup.sh ausführen."; exit 1; }
+command -v claude >/dev/null || { echo "Claude Code is missing – please run ./setup.sh first."; exit 1; }
+[[ -d channel/node_modules ]] || { echo "Dependencies are missing – please run ./setup.sh first."; exit 1; }
 
-# Dashboard öffnen, sobald der Channel läuft
+# Open the dashboard as soon as the channel is running
 (
   for _ in $(seq 1 90); do
     if curl -fsS "http://localhost:$PORT/health" >/dev/null 2>&1; then
@@ -18,14 +18,14 @@ command -v claude >/dev/null || { echo "Claude Code fehlt – bitte zuerst ./set
   done
 ) &
 
-echo "◉ RayBan Claude startet … Dashboard öffnet sich gleich im Browser."
-# Nur die eigenen Werkzeuge von RayBan Claude vorab erlauben – alles andere fragt weiter nach
-# Frühere Brillen-Sitzung in diesem Ordner? Dann dort weitermachen (--neu startet frisch)
+echo "◉ RayBan Claude is starting … the dashboard will open in your browser shortly."
+# Pre-approve only RayBan Claude's own tools – everything else still asks
+# Earlier glasses session in this folder? Then continue there (--neu starts fresh)
 resume=()
 session_dir="$HOME/.claude/projects/$(pwd | sed 's/[^A-Za-z0-9]/-/g')"
 if [[ "${1:-}" != "--neu" ]] && compgen -G "$session_dir/*.jsonl" > /dev/null; then
   resume=(--continue)
-  echo "  Setzt das letzte Gespräch fort (neues Gespräch: ./start.sh --neu)"
+  echo "  Resuming the last conversation (new conversation: ./start.sh --neu)"
 fi
 exec claude "${resume[@]}" --dangerously-load-development-channels server:raybanclaude \
   --allowedTools "mcp__raybanclaude__reply" "mcp__raybanclaude__edit_message" "mcp__raybanclaude__request_photo" \

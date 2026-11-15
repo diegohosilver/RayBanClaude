@@ -2,8 +2,8 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import type { MCPManager } from "../mcp-manager.js";
 
-// GET /tools        – Liste der MCP-Werkzeuge (nur mit Token)
-// GET /tools/health – Erreichbarkeit der MCP-Server (nur mit Token)
+// GET /tools        – list of MCP tools (token required)
+// GET /tools/health – reachability of the MCP servers (token required)
 
 export function createToolsRouter(mcpManager: MCPManager): Router {
   const router = Router();

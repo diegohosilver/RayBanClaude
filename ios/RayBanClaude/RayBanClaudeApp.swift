@@ -1,7 +1,7 @@
 import SwiftUI
 import MWDATCore
 
-/// Ob das Meta-SDK bereit ist – ohne erfolgreiche Konfiguration darf Wearables.shared nicht genutzt werden
+/// Whether the Meta SDK is ready – without a successful configuration, Wearables.shared must not be used
 @MainActor
 enum WearablesSupport {
     static var isConfigured = false
@@ -12,12 +12,12 @@ struct RayBanClaudeApp: App {
     @StateObject private var viewModel: SessionViewModel
 
     init() {
-        // Das DAT SDK muss vor jedem Zugriff auf Wearables.shared konfiguriert sein
+        // The DAT SDK must be configured before any access to Wearables.shared
         do {
             try Wearables.configure()
             WearablesSupport.isConfigured = true
         } catch {
-            print("[App] Meta-SDK konnte nicht konfiguriert werden: \(error)")
+            print("[App] Could not configure Meta SDK: \(error)")
         }
         _viewModel = StateObject(wrappedValue: SessionViewModel())
         HUDAppearance.apply()
@@ -28,7 +28,7 @@ struct RayBanClaudeApp: App {
             ContentView(viewModel: viewModel)
                 .preferredColorScheme(.dark)
                 .tint(.hudCyan)
-                // Kopplungs-QR-Code (raybanclaude://pair?…) und Rückrufe der Meta-AI-App
+                // Pairing QR code (raybanclaude://pair?…) and callbacks from the Meta AI app
                 .onOpenURL { url in viewModel.handleIncomingURL(url) }
         }
     }

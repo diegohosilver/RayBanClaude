@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# skills-cloud.sh - laeuft automatisch beim Start jeder Claude-Code-Cloud-Sitzung
-# (SessionStart-Hook in .claude/settings.json jedes Projekts).
-# Installiert Philips Skills aus MoinMornhart/claude-skills nach ~/.claude/skills.
-# Still: keine Ausgabe, wenn alles klappt. Bricht nie ab, blockiert nie die Sitzung.
-# Lokal (Windows-PC) tut es nichts - dort erledigt das MorniSync.
+# skills-cloud.sh - runs automatically at the start of every Claude Code cloud session
+# (SessionStart hook in .claude/settings.json of each project).
+# Installs Philip's skills from MoinMornhart/claude-skills into ~/.claude/skills.
+# Silent: no output when everything works. Never aborts, never blocks the session.
+# Locally (Windows PC) it does nothing - MorniSync handles that there.
 
 [[ "${CLAUDE_CODE_REMOTE:-}" == "true" || "${1:-}" == "--force" ]] || exit 0
 
@@ -12,8 +12,8 @@ LOG="${HOME}/.claude/skills-cloud.log"
 ARBEIT="$(mktemp -d 2>/dev/null || echo /tmp/skills-cloud.$$)"
 mkdir -p "$ZIEL" "$ARBEIT"
 
-# Ersatzliste, falls das private Repo claude-skills in der Sitzung nicht erreichbar ist.
-# Wird von cloud/cloud-einrichten.sh aus skills-auswahl.txt erzeugt.
+# Fallback list in case the private claude-skills repo is not reachable in the session.
+# Generated from skills-auswahl.txt by cloud/cloud-einrichten.sh.
 ERSATZ=$(cat <<'LISTE'
 vercel-labs/skills find-skills
 mattpocock/skills grill-me
@@ -46,7 +46,7 @@ LISTE
 )
 
 lauf() {
-  # 1) Neueste Liste aus dem Repo holen, sonst Ersatzliste
+  # 1) Fetch the latest list from the repo, otherwise use the fallback list
   local liste=""
   if timeout 30 git clone -q --depth 1 https://github.com/MoinMornhart/claude-skills "$ARBEIT/claude-skills" 2>/dev/null \
      && [[ -f "$ARBEIT/claude-skills/skills-auswahl.txt" ]]; then
@@ -55,7 +55,7 @@ lauf() {
     liste="$ERSATZ"
   fi
 
-  # 2) Fehlende Skills einsammeln, gruppiert nach Quell-Repo
+  # 2) Collect missing skills, grouped by source repo
   declare -A fehlt=()
   while read -r repo skill _; do
     [[ -z "${repo:-}" || "$repo" == \#* || -z "${skill:-}" ]] && continue
@@ -65,7 +65,7 @@ lauf() {
   done <<< "$liste"
   [[ ${#fehlt[@]} -eq 0 ]] && return 0
 
-  # 3) Je Quell-Repo einmal flach klonen und die Skill-Ordner kopieren
+  # 3) Clone each source repo once (shallow) and copy the skill folders
   local fehler=""
   for repo in "${!fehlt[@]}"; do
     local d="$ARBEIT/src/${repo//\//_}"
@@ -74,13 +74,13 @@ lauf() {
     fi
     for skill in ${fehlt[$repo]}; do
       local quelle=""
-      # Ordner mit gleichem Namen und SKILL.md suchen (skills/<name>, .claude/skills/<name>, <name>, ...)
+      # Look for a folder with the same name and SKILL.md (skills/<name>, .claude/skills/<name>, <name>, ...)
       quelle="$(find "$d" -type f -name SKILL.md -path "*/$skill/SKILL.md" -not -path '*/node_modules/*' 2>/dev/null | awk '{print length, $0}' | sort -n | head -1 | cut -d' ' -f2-)"
-      # sonst per "name:" in der Kopfzeile
+      # otherwise via "name:" in the header
       if [[ -z "$quelle" ]]; then
         quelle="$(grep -rlE --include=SKILL.md "^name:[[:space:]]*['\"]?$skill['\"]?[[:space:]]*$" "$d" 2>/dev/null | head -1)"
       fi
-      # Repo hat nur einen Skill im Wurzelordner
+      # Repo has only one skill in the root folder
       if [[ -z "$quelle" && -f "$d/SKILL.md" ]]; then quelle="$d/SKILL.md"; fi
       if [[ -n "$quelle" ]]; then
         rm -rf "$ZIEL/$skill" && mkdir -p "$ZIEL/$skill" \
@@ -93,7 +93,7 @@ lauf() {
     done
   done
   if [[ -n "$fehler" ]]; then
-    echo "$(date '+%F %T') fehlgeschlagen:$fehler" >> "$LOG"
+    echo "$(date '+%F %T') failed:$fehler" >> "$LOG"
   else
     echo "$(date '+%F %T') ok" >> "$LOG"
   fi
@@ -102,7 +102,7 @@ lauf() {
 if [[ "${1:-}" == "--vordergrund" || "${1:-}" == "--force" ]]; then
   lauf; rm -rf "$ARBEIT"
 else
-  # Im Hintergrund, damit die Sitzung sofort startet
+  # In the background so the session starts immediately
   ( lauf; rm -rf "$ARBEIT" ) </dev/null >/dev/null 2>&1 &
   disown 2>/dev/null || true
 fi

@@ -4,7 +4,7 @@ import CoreImage
 import ImageIO
 import UIKit
 
-// MARK: - Erkannter QR-/Barcode
+// MARK: - Detected QR/barcode
 
 struct DetectedCode: Equatable {
     let type: String
@@ -15,7 +15,7 @@ struct DetectedCode: Equatable {
         lhs.type == rhs.type && lhs.value == rhs.value
     }
 
-    /// Lesbarer Name des Codetyps
+    /// Readable name of the code type
     var typeLabel: String {
         type.replacingOccurrences(of: "org.iso.", with: "")
             .replacingOccurrences(of: "org.gs1.", with: "")
@@ -23,7 +23,7 @@ struct DetectedCode: Equatable {
     }
 }
 
-// MARK: - iPhone-Kamera
+// MARK: - iPhone camera
 
 @MainActor
 final class CameraManager: NSObject, ObservableObject, FrameSource {
@@ -38,7 +38,7 @@ final class CameraManager: NSObject, ObservableObject, FrameSource {
 
     private let videoOutput = AVCaptureVideoDataOutput()
     private let metadataOutput = AVCaptureMetadataOutput()
-    /// Alle Session-Änderungen laufen auf dieser Queue (Apple-Empfehlung, blockiert nicht die UI)
+    /// All session changes run on this queue (Apple recommendation, does not block the UI)
     private nonisolated let sessionQueue = DispatchQueue(label: "camera.session")
     private nonisolated let processor = FrameProcessor()
     private var isConfigured = false
@@ -66,12 +66,12 @@ final class CameraManager: NSObject, ObservableObject, FrameSource {
             let running = captureSession.isRunning
             Task { @MainActor [weak self] in
                 self?.isRunning = running
-                self?.connectionStatus = running ? .connected : .error("Kamera konnte nicht starten")
+                self?.connectionStatus = running ? .connected : .error("Camera could not start")
             }
         }
     }
 
-    /// Stoppt immer – auch wenn der Start noch läuft (früher wurde ein laufender Start übersehen).
+    /// Always stops – even if startup is still in progress (a running startup used to be missed).
     func stop() {
         sessionQueue.async { [captureSession] in
             if captureSession.isRunning { captureSession.stopRunning() }
@@ -89,10 +89,10 @@ final class CameraManager: NSObject, ObservableObject, FrameSource {
         return await processor.nextFrame(quality: 0.92) ?? latestFrame
     }
 
-    /// iPhone-Kamera läuft als Sucher ohnehin, solange die App offen ist
+    /// The iPhone camera runs as a viewfinder anyway while the app is open
     func prepareCapture() {}
 
-    // MARK: - Einrichtung
+    // MARK: - Setup
 
     private func configureSession() throws {
         captureSession.beginConfiguration()
@@ -114,7 +114,7 @@ final class CameraManager: NSObject, ObservableObject, FrameSource {
             if camera.isExposureModeSupported(.continuousAutoExposure) { camera.exposureMode = .continuousAutoExposure }
             camera.unlockForConfiguration()
         } catch {
-            print("[Kamera] Gerät nicht konfigurierbar: \(error)")
+            print("[Camera] Device not configurable: \(error)")
         }
 
         videoOutput.alwaysDiscardsLateVideoFrames = true
@@ -129,7 +129,7 @@ final class CameraManager: NSObject, ObservableObject, FrameSource {
         if captureSession.canAddOutput(videoOutput) {
             captureSession.addOutput(videoOutput)
         }
-        // Hochformat: ohne diese Drehung kamen die Bilder bei Claude um 90° gedreht an
+        // Portrait: without this rotation, images reached Claude rotated by 90°
         if let connection = videoOutput.connection(with: .video), connection.isVideoRotationAngleSupported(90) {
             connection.videoRotationAngle = 90
         }
@@ -153,7 +153,7 @@ final class CameraManager: NSObject, ObservableObject, FrameSource {
     }
 }
 
-// MARK: - QR-/Barcode-Erkennung
+// MARK: - QR/barcode detection
 
 extension CameraManager: AVCaptureMetadataOutputObjectsDelegate {
     nonisolated func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
@@ -166,10 +166,10 @@ extension CameraManager: AVCaptureMetadataOutputObjectsDelegate {
     }
 }
 
-// MARK: - Bildverarbeitung (läuft auf eigener Queue, nicht auf dem Main-Thread)
+// MARK: - Image processing (runs on its own queue, not on the main thread)
 
-/// Wandelt Kamerabilder gedrosselt in JPEG um. Ein CIContext wird wiederverwendet
-/// (früher wurde pro Bild ein neuer erzeugt – teuer).
+/// Converts camera frames to JPEG, throttled. One CIContext is reused
+/// (a new one used to be created per frame – expensive).
 final class FrameProcessor: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     let queue = DispatchQueue(label: "camera.frames")
     var onFrame: ((Data) -> Void)?
@@ -188,7 +188,7 @@ final class FrameProcessor: NSObject, AVCaptureVideoDataOutputSampleBufferDelega
         self.jpegQuality = jpegQuality
     }
 
-    /// Liefert das nächste Kamerabild in hoher Qualität (max. 2 s warten).
+    /// Returns the next camera frame in high quality (waits at most 2 s).
     func nextFrame(quality: CGFloat) async -> Data? {
         await withCheckedContinuation { continuation in
             lock.lock()
@@ -232,7 +232,7 @@ enum CameraError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .noCameraAvailable: return "Keine Kamera verfügbar"
+        case .noCameraAvailable: return "No camera available"
         }
     }
 }

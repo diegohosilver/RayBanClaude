@@ -8,9 +8,9 @@ import SwiftUI
 import UIKit
 import UserNotifications
 
-// MARK: - Modelle
+// MARK: - Models
 
-/// Aktion, die Claude per Tool `phone_action` auf dem iPhone auslöst
+/// Action that Claude triggers on the iPhone via the `phone_action` tool
 struct PhoneAction: Identifiable {
     enum Kind: String {
         case timer, alarm, cancel_timer, call, message, navigate, reminder, save_photo, location
@@ -20,7 +20,7 @@ struct PhoneAction: Identifiable {
     let kind: Kind
     var durationSeconds: Int?
     var time: String?
-    /// Erinnerung: Tag als JJJJ-MM-TT
+    /// Reminder: day as YYYY-MM-DD
     var date: String?
     var label: String?
     var contact: String?
@@ -36,7 +36,7 @@ struct RunningTimer: Identifiable, Equatable {
     let isAlarm: Bool
 }
 
-/// Rückfrage vor Anruf, Nachricht oder Navigation (nie ohne Bestätigung)
+/// Confirmation prompt before call, message or navigation (never without confirmation)
 struct ActionConfirmation: Identifiable, Equatable {
     struct Option: Identifiable, Equatable {
         let id = UUID()
@@ -69,21 +69,21 @@ struct ActionResult {
     let message: String
 }
 
-// MARK: - Ausführung
+// MARK: - Execution
 
-/// Führt Handy-Aktionen aus. Kontakte werden nur lokal gesucht – an Claude gehen
-/// nie Telefonnummern, nur Name und Art („Mama (Mobil)“).
+/// Executes phone actions. Contacts are only searched locally – phone numbers are
+/// never sent to Claude, only name and type (“Mom (Mobile)”).
 @MainActor
 final class PhoneActionHandler: NSObject, ObservableObject {
     @Published private(set) var timers: [RunningTimer] = []
     @Published var confirmation: ActionConfirmation?
     @Published var messageDraft: MessageDraft?
 
-    /// Timer/Wecker abgelaufen, während die App offen ist → ansagen
+    /// Timer/alarm expired while the app is open → announce it
     var onTimerFired: ((RunningTimer) -> Void)?
-    /// Liefert das Foto, das Claude gerade gesehen hat (oder macht ein neues) – für save_photo
+    /// Returns the photo Claude just saw (or takes a new one) – for save_photo
     var latestPhoto: (() async -> Data?)?
-    /// Gedächtnis für „Merk dir, wo ich geparkt habe“
+    /// Memory for “Remember where I parked”
     weak var memory: MemoryStore?
 
     private let center = UNUserNotificationCenter.current()
@@ -102,34 +102,34 @@ final class PhoneActionHandler: NSObject, ObservableObject {
     func handle(_ action: PhoneAction) async -> ActionResult {
         switch action.kind {
         case .timer:
-            guard let seconds = action.durationSeconds, seconds > 0 else { return ActionResult(ok: false, message: "Dauer fehlt") }
+            guard let seconds = action.durationSeconds, seconds > 0 else { return ActionResult(ok: false, message: "Duration missing") }
             return await schedule(label: action.label ?? "Timer", fireDate: Date().addingTimeInterval(TimeInterval(seconds)),
                                   trigger: UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false),
                                   isAlarm: false)
         case .alarm:
             guard let next = Self.nextOccurrence(of: action.time) else {
-                return ActionResult(ok: false, message: "Uhrzeit nicht verstanden")
+                return ActionResult(ok: false, message: "Time not understood")
             }
-            return await schedule(label: action.label ?? "Wecker", fireDate: next.date,
+            return await schedule(label: action.label ?? "Alarm", fireDate: next.date,
                                   trigger: UNCalendarNotificationTrigger(dateMatching: next.components, repeats: false),
                                   isAlarm: true)
         case .cancel_timer:
             return await cancelTimers(matching: action.label)
         case .call:
-            return await prepareContactAction(action, kind: .call, verb: "Anruf an")
+            return await prepareContactAction(action, kind: .call, verb: "Call")
         case .message:
-            guard let text = action.text, !text.isEmpty else { return ActionResult(ok: false, message: "Nachrichtentext fehlt") }
-            return await prepareContactAction(action, kind: .message(text: text), verb: "Nachricht an")
+            guard let text = action.text, !text.isEmpty else { return ActionResult(ok: false, message: "Message text missing") }
+            return await prepareContactAction(action, kind: .message(text: text), verb: "Message")
         case .navigate:
             guard let destination = action.destination, !destination.isEmpty else {
-                return ActionResult(ok: false, message: "Ziel fehlt")
+                return ActionResult(ok: false, message: "Destination missing")
             }
-            confirmation = ActionConfirmation(kind: .navigate, title: "Route nach „\(destination)“ starten?",
-                                              options: [.init(label: "Route starten", value: destination)])
-            return ActionResult(ok: true, message: "Rückfrage auf dem iPhone angezeigt: Route nach \(destination)")
+            confirmation = ActionConfirmation(kind: .navigate, title: "Start route to “\(destination)”?",
+                                              options: [.init(label: "Start route", value: destination)])
+            return ActionResult(ok: true, message: "Confirmation shown on the iPhone: route to \(destination)")
         case .reminder:
             guard let text = action.text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
-                return ActionResult(ok: false, message: "Woran soll ich erinnern?")
+                return ActionResult(ok: false, message: "What should I remind you of?")
             }
             return await addReminder(title: text, date: action.date, time: action.time)
         case .save_photo:
@@ -139,15 +139,15 @@ final class PhoneActionHandler: NSObject, ObservableObject {
         }
     }
 
-    // MARK: Erinnerungen (App „Erinnerungen“)
+    // MARK: Reminders (Reminders app)
 
     private func addReminder(title: String, date: String?, time: String?) async -> ActionResult {
         let granted = (try? await eventStore.requestFullAccessToReminders()) ?? false
         guard granted else {
-            return ActionResult(ok: false, message: "Kein Zugriff auf Erinnerungen – in den iOS-Einstellungen für RayBan Claude erlauben")
+            return ActionResult(ok: false, message: "No access to Reminders – allow it in iOS Settings for RayBan Claude")
         }
         guard let list = eventStore.defaultCalendarForNewReminders() else {
-            return ActionResult(ok: false, message: "Keine Erinnerungsliste gefunden")
+            return ActionResult(ok: false, message: "No reminders list found")
         }
         let reminder = EKReminder(eventStore: eventStore)
         reminder.title = String(title.prefix(200))
@@ -160,14 +160,14 @@ final class PhoneActionHandler: NSObject, ObservableObject {
         do {
             try eventStore.save(reminder, commit: true)
         } catch {
-            print("[Aktion] Erinnerung nicht gespeichert: \(error.localizedDescription)")
-            return ActionResult(ok: false, message: "Erinnerung konnte nicht gespeichert werden")
+            print("[Action] Reminder not saved: \(error.localizedDescription)")
+            return ActionResult(ok: false, message: "Reminder could not be saved")
         }
-        let when = due.map { " für \(Self.dueFormatter.string(from: $0)) Uhr" } ?? ""
-        return ActionResult(ok: true, message: "Erinnerung „\(reminder.title ?? title)“\(when) gespeichert")
+        let when = due.map { " for \(Self.dueFormatter.string(from: $0))" } ?? ""
+        return ActionResult(ok: true, message: "Reminder “\(reminder.title ?? title)”\(when) saved")
     }
 
-    /// Fälligkeit aus „JJJJ-MM-TT“ und/oder „HH:MM“ (nur Datum → 9 Uhr, nur Uhrzeit → nächstes Vorkommen)
+    /// Due date from “YYYY-MM-DD” and/or “HH:MM” (date only → 9 a.m., time only → next occurrence)
     static func dueDate(date: String?, time: String?) -> Date? {
         let clock = (time ?? "").split(separator: ":").compactMap { Int($0) }
         let hasTime = clock.count == 2 && (0...23).contains(clock[0]) && (0...59).contains(clock[1])
@@ -183,33 +183,33 @@ final class PhoneActionHandler: NSObject, ObservableObject {
 
     private static let dueFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "EEEE, d. MMMM, HH:mm"
+        f.locale = Locale(identifier: "en_US")
+        f.dateFormat = "EEEE, MMMM d, HH:mm"
         return f
     }()
 
-    // MARK: Foto in der Mediathek sichern
+    // MARK: Save photo to the photo library
 
     private func savePhoto() async -> ActionResult {
         guard let data = await latestPhoto?() else {
-            return ActionResult(ok: false, message: "Kein Foto vorhanden – ist die Kamera bereit?")
+            return ActionResult(ok: false, message: "No photo available – is the camera ready?")
         }
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
-            return ActionResult(ok: false, message: "Kein Zugriff auf Fotos – in den iOS-Einstellungen für RayBan Claude erlauben")
+            return ActionResult(ok: false, message: "No access to Photos – allow it in iOS Settings for RayBan Claude")
         }
         do {
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
             }
-            return ActionResult(ok: true, message: "Foto in der Mediathek gespeichert")
+            return ActionResult(ok: true, message: "Photo saved to the photo library")
         } catch {
-            print("[Aktion] Foto nicht gespeichert: \(error.localizedDescription)")
-            return ActionResult(ok: false, message: "Foto konnte nicht gespeichert werden")
+            print("[Action] Photo not saved: \(error.localizedDescription)")
+            return ActionResult(ok: false, message: "Photo could not be saved")
         }
     }
 
-    // MARK: Standort („Wo bin ich?“, „Merk dir, wo ich geparkt habe“)
+    // MARK: Location (“Where am I?”, “Remember where I parked”)
 
     private func locate(label: String?) async -> ActionResult {
         let place: String
@@ -219,23 +219,23 @@ final class PhoneActionHandler: NSObject, ObservableObject {
             return ActionResult(ok: false, message: error.localizedDescription)
         }
         guard let label = label?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty else {
-            return ActionResult(ok: true, message: "Aktueller Standort: \(place)")
+            return ActionResult(ok: true, message: "Current location: \(place)")
         }
         let stamp = Self.stampFormatter.string(from: Date())
         guard memory?.add("\(label): \(place) (\(stamp))") != nil else {
-            return ActionResult(ok: true, message: "Standort: \(place) – Gedächtnis ist aus, nicht gespeichert")
+            return ActionResult(ok: true, message: "Location: \(place) – memory is off, not saved")
         }
-        return ActionResult(ok: true, message: "Gemerkt – \(label): \(place)")
+        return ActionResult(ok: true, message: "Remembered – \(label): \(place)")
     }
 
     private static let stampFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
-        f.dateFormat = "d.M., HH:mm 'Uhr'"
+        f.locale = Locale(identifier: "en_US")
+        f.dateFormat = "M/d, HH:mm"
         return f
     }()
 
-    // MARK: Timer und Wecker
+    // MARK: Timers and alarms
 
     private func schedule(label: String, fireDate: Date, trigger: UNNotificationTrigger, isAlarm: Bool) async -> ActionResult {
         let id = Self.idPrefix + UUID().uuidString
@@ -244,16 +244,16 @@ final class PhoneActionHandler: NSObject, ObservableObject {
         if allowed {
             let content = UNMutableNotificationContent()
             content.title = isAlarm ? "⏰ \(label)" : "⏱ \(label)"
-            content.body = isAlarm ? "Es ist \(Self.timeFormatter.string(from: fireDate)) Uhr." : "Der Timer ist abgelaufen."
+            content.body = isAlarm ? "It is \(Self.timeFormatter.string(from: fireDate))." : "The timer has expired."
             content.sound = .default
             content.interruptionLevel = .timeSensitive
             do {
                 try await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
             } catch {
-                return ActionResult(ok: false, message: "Timer konnte nicht gestellt werden")
+                return ActionResult(ok: false, message: "Timer could not be set")
             }
         } else {
-            // Ohne Mitteilungen: nur solange die App offen ist
+            // Without notifications: only while the app is open
             fallbackTasks[id] = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(max(0, fireDate.timeIntervalSinceNow) * 1_000_000_000))
                 guard !Task.isCancelled else { return }
@@ -262,23 +262,23 @@ final class PhoneActionHandler: NSObject, ObservableObject {
         }
         timers.append(timer)
         timers.sort { $0.fireDate < $1.fireDate }
-        let when = isAlarm ? "um \(Self.timeFormatter.string(from: fireDate)) Uhr" : Self.describe(duration: fireDate.timeIntervalSinceNow)
-        let note = allowed ? "" : " (Mitteilungen sind aus – klingelt nur bei offener App)"
-        return ActionResult(ok: true, message: "\(isAlarm ? "Wecker" : "Timer") „\(label)“ \(when) gestellt\(note)")
+        let when = isAlarm ? "at \(Self.timeFormatter.string(from: fireDate))" : Self.describe(duration: fireDate.timeIntervalSinceNow)
+        let note = allowed ? "" : " (notifications are off – only rings while the app is open)"
+        return ActionResult(ok: true, message: "\(isAlarm ? "Alarm" : "Timer") “\(label)” set \(when)\(note)")
     }
 
     func cancelTimers(matching label: String?) async -> ActionResult {
         let query = label?.trimmingCharacters(in: .whitespaces).lowercased() ?? ""
         let matching = timers.filter { query.isEmpty || $0.label.lowercased().contains(query) }
-        guard !matching.isEmpty else { return ActionResult(ok: false, message: "Kein passender Timer läuft") }
+        guard !matching.isEmpty else { return ActionResult(ok: false, message: "No matching timer is running") }
         let ids = matching.map(\.id)
         center.removePendingNotificationRequests(withIdentifiers: ids)
         ids.forEach { fallbackTasks.removeValue(forKey: $0)?.cancel() }
         timers.removeAll { ids.contains($0.id) }
-        return ActionResult(ok: true, message: "\(matching.count) Timer/Wecker gelöscht")
+        return ActionResult(ok: true, message: "\(matching.count) timer(s)/alarm(s) deleted")
     }
 
-    /// Einen bestimmten Timer löschen (Tipp auf den Timer in der App)
+    /// Delete a specific timer (tap on the timer in the app)
     func cancel(_ timer: RunningTimer) {
         center.removePendingNotificationRequests(withIdentifiers: [timer.id])
         fallbackTasks.removeValue(forKey: timer.id)?.cancel()
@@ -292,14 +292,14 @@ final class PhoneActionHandler: NSObject, ObservableObject {
         onTimerFired?(timer)
     }
 
-    /// Abgelaufene Einträge entfernen (z. B. nachdem die App im Hintergrund war)
+    /// Remove expired entries (e.g. after the app was in the background)
     func refreshTimers() async {
         guard !DemoMode.isActive else { return }
         let pending = Set(await center.pendingNotificationRequests().map(\.identifier))
         timers.removeAll { !pending.contains($0.id) && fallbackTasks[$0.id] == nil }
     }
 
-    /// Nächstes Vorkommen einer Uhrzeit „HH:MM“ (heute oder morgen)
+    /// Next occurrence of a time “HH:MM” (today or tomorrow)
     static func nextOccurrence(of time: String?) -> (components: DateComponents, date: Date)? {
         let parts = (time ?? "").split(separator: ":").compactMap { Int($0) }
         guard parts.count == 2, (0...23).contains(parts[0]), (0...59).contains(parts[1]) else { return nil }
@@ -312,43 +312,43 @@ final class PhoneActionHandler: NSObject, ObservableObject {
         let total = Int(duration.rounded())
         let hours = total / 3600, minutes = (total % 3600) / 60, seconds = total % 60
         let parts = [
-            hours > 0 ? "\(hours) Std" : nil,
-            minutes > 0 ? "\(minutes) Min" : nil,
-            hours == 0 && seconds > 0 ? "\(seconds) Sek" : nil,
+            hours > 0 ? "\(hours) hr" : nil,
+            minutes > 0 ? "\(minutes) min" : nil,
+            hours == 0 && seconds > 0 ? "\(seconds) sec" : nil,
         ].compactMap { $0 }
-        return "für " + (parts.isEmpty ? "0 Sek" : parts.joined(separator: " "))
+        return "for " + (parts.isEmpty ? "0 sec" : parts.joined(separator: " "))
     }
 
     private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "de_DE")
+        f.locale = Locale(identifier: "en_US")
         f.dateFormat = "HH:mm"
         return f
     }()
 
-    // MARK: Anruf und Nachricht
+    // MARK: Call and message
 
     private func prepareContactAction(_ action: PhoneAction, kind: ActionConfirmation.Kind, verb: String) async -> ActionResult {
         if let number = action.number, !number.isEmpty {
             confirmation = ActionConfirmation(kind: kind, title: "\(verb) \(number)?", options: [.init(label: number, value: number)])
-            return ActionResult(ok: true, message: "Rückfrage auf dem iPhone angezeigt: \(verb) die genannte Nummer")
+            return ActionResult(ok: true, message: "Confirmation shown on the iPhone: \(verb) the given number")
         }
-        guard let name = action.contact, !name.isEmpty else { return ActionResult(ok: false, message: "Kontakt fehlt") }
+        guard let name = action.contact, !name.isEmpty else { return ActionResult(ok: false, message: "Contact missing") }
 
         let granted = (try? await contactStore.requestAccess(for: .contacts)) ?? false
         guard granted else {
-            return ActionResult(ok: false, message: "Kein Zugriff auf Kontakte – in den iOS-Einstellungen für RayBan Claude erlauben")
+            return ActionResult(ok: false, message: "No access to Contacts – allow it in iOS Settings for RayBan Claude")
         }
         let options = await Self.findNumbers(for: name, in: contactStore)
-        guard !options.isEmpty else { return ActionResult(ok: false, message: "Kein Kontakt „\(name)“ mit Telefonnummer gefunden") }
+        guard !options.isEmpty else { return ActionResult(ok: false, message: "No contact “\(name)” with a phone number found") }
 
         confirmation = ActionConfirmation(kind: kind, title: "\(verb) \(name)?", options: options)
-        // Nur Namen und Art der Nummer an Claude – keine Telefonnummern
-        let summary = options.count == 1 ? options[0].label : "\(options.count) Nummern zur Auswahl"
-        return ActionResult(ok: true, message: "Rückfrage auf dem iPhone angezeigt: \(verb) \(summary)")
+        // Only names and number type go to Claude – no phone numbers
+        let summary = options.count == 1 ? options[0].label : "\(options.count) numbers to choose from"
+        return ActionResult(ok: true, message: "Confirmation shown on the iPhone: \(verb) \(summary)")
     }
 
-    /// Kontaktsuche abseits des Main-Threads (CNContactStore blockiert)
+    /// Contact search off the main thread (CNContactStore blocks)
     private static func findNumbers(for name: String, in store: CNContactStore) async -> [ActionConfirmation.Option] {
         await Task.detached(priority: .userInitiated) {
             let keys: [CNKeyDescriptor] = [
@@ -360,14 +360,14 @@ final class PhoneActionHandler: NSObject, ObservableObject {
             return contacts.prefix(5).flatMap { contact -> [ActionConfirmation.Option] in
                 let display = CNContactFormatter.string(from: contact, style: .fullName) ?? contact.nickname
                 return contact.phoneNumbers.prefix(4).map { labeled in
-                    let kind = labeled.label.map { CNLabeledValue<NSString>.localizedString(forLabel: $0) } ?? "Telefon"
+                    let kind = labeled.label.map { CNLabeledValue<NSString>.localizedString(forLabel: $0) } ?? "Phone"
                     return ActionConfirmation.Option(label: "\(display) (\(kind))", value: labeled.value.stringValue)
                 }
             }
         }.value
     }
 
-    // MARK: Bestätigen
+    // MARK: Confirming
 
     func confirm(_ option: ActionConfirmation.Option) {
         guard let pending = confirmation else { return }
@@ -393,14 +393,14 @@ final class PhoneActionHandler: NSObject, ObservableObject {
         confirmation = nil
     }
 
-    /// Nur für den Demo-Modus (Screenshots)
+    /// For demo mode only (screenshots)
     func showDemo(timerLabel: String, seconds: TimeInterval, confirmation: ActionConfirmation?) {
         timers = [RunningTimer(id: "demo", label: timerLabel, fireDate: Date().addingTimeInterval(seconds), isAlarm: false)]
         self.confirmation = confirmation
     }
 }
 
-// MARK: - Mitteilungen im Vordergrund
+// MARK: - Notifications in the foreground
 
 extension PhoneActionHandler: UNUserNotificationCenterDelegate {
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
@@ -411,9 +411,9 @@ extension PhoneActionHandler: UNUserNotificationCenterDelegate {
     }
 }
 
-// MARK: - Nachrichten-Fenster
+// MARK: - Message sheet
 
-/// Systemfenster zum Senden einer SMS/iMessage – der Nutzer tippt selbst auf „Senden“.
+/// System sheet for sending an SMS/iMessage – the user taps “Send” themselves.
 struct MessageComposeView: UIViewControllerRepresentable {
     let draft: MessageDraft
     let onFinish: () -> Void
