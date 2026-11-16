@@ -390,13 +390,18 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
             return false
         }
         do {
-            if try await wearables.checkPermissionStatus(.camera) != .granted {
-                guard try await wearables.requestPermission(.camera) == .granted else {
+            let status = try await wearables.checkPermissionStatus(.camera)
+            note("camera permission status: \(status)")
+            if status != .granted {
+                let result = try await wearables.requestPermission(.camera)
+                note("camera permission request result: \(result)")
+                guard result == .granted else {
                     connectionStatus = .error("Camera permission denied – allow it in the Meta AI app")
                     return false
                 }
             }
         } catch {
+            note("camera permission error: \(error)")
             connectionStatus = .error("Camera permission not possible: \(error.localizedDescription)")
             return false
         }
@@ -447,6 +452,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         do {
             session = try wearables.createSession(deviceSelector: AutoDeviceSelector(wearables: wearables))
         } catch {
+            note("create session failed: \(error)")
             connectionStatus = .error(describe(error))
             return nil
         }
