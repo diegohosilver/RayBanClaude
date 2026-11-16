@@ -140,6 +140,8 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     private static let blackLuminanceThreshold = 6
     private static let luminanceProbeSize = 8
     private let pollInterval: UInt64 = 100_000_000             // 0.1 s
+    /// Wait at most this long for the SDK to list the paired glasses
+    private let deviceListTimeout: TimeInterval = 3
     /// Only attach inputs once the glasses are really connected (wait at most this long)
     private let deviceArrivalTimeout: TimeInterval = 10
     /// Pause before (re)attaching the inputs – value from Meta's BirdSpotter example
@@ -435,6 +437,25 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         return await task.value
     }
 
+    /// The paired glasses to run the session on: a connected one first, then a compatible one.
+    /// The list can arrive a moment after start-up, so wait briefly for it.
+    private func pairedDeviceIdentifier() async -> DeviceIdentifier? {
+        let deadline = Date().addingTimeInterval(deviceListTimeout)
+        var devices: [Device] = []
+        repeat {
+            devices = Wearables.shared.devices.compactMap { Wearables.shared.deviceForIdentifier($0) }
+            if !devices.isEmpty { break }
+            try? await Task.sleep(nanoseconds: pollInterval)
+        } while Date() < deadline && !Task.isCancelled
+        let roster = devices.map { "\($0.nameOrId()) type=\($0.deviceType()) link=\($0.linkState) compat=\($0.compatibility())" }
+        note("paired devices: \(devices.count) \(roster)")
+        let rank: (Device) -> Int = { device in
+            if device.linkState == .connected { return 0 }
+            return device.compatibility() == .compatible ? 1 : 2
+        }
+        return devices.min { rank($0) < rank($1) }?.identifier
+    }
+
     /// Create and start the session and (with gestures) attach the inputs
     private func openSession() async -> DeviceSession? {
         connectionStatus = .connecting
@@ -450,7 +471,13 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         // 2. Device session
         let session: DeviceSession
         do {
-            session = try wearables.createSession(deviceSelector: AutoDeviceSelector(wearables: wearables))
+            // Named device, not AutoDeviceSelector: that one fills in asynchronously and is still
+            // empty right after the tap, which fails with noEligibleDevice (see Meta's BirdSpotter sample)
+            guard let identifier = await pairedDeviceIdentifier() else {
+                connectionStatus = .error("No paired glasses found. Connect them in the Meta AI app, then \"Connect glasses via Meta AI\".")
+                return nil
+            }
+            session = try wearables.createSession(deviceSelector: SpecificDeviceSelector(device: identifier))
         } catch {
             note("create session failed: \(error)")
             connectionStatus = .error(describe(error))
