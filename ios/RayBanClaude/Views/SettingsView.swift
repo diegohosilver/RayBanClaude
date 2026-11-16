@@ -368,7 +368,7 @@ struct SettingsView: View {
 
     private var aboutSection: some View {
         Section {
-            LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–")
+            LabeledContent("Version", value: "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "–") (build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "–"))")
             if let url = URL(string: "https://github.com/MoinMornhart/RayBanClaude") {
                 Link(destination: url) { Label("Project on GitHub", systemImage: "chevron.left.forwardslash.chevron.right") }
             }
