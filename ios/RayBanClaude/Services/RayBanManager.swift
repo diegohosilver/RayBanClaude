@@ -124,8 +124,8 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     private let streamReadyTimeout: TimeInterval = 15
     /// Camera restart on the running session – then fall back: rebuild the session
     private let cameraRestartTimeout: TimeInterval = 8
-    /// Let the exposure settle after the camera starts (0.4 s was too short: photos came out black)
-    private let exposureSettleDelay: UInt64 = 1_500_000_000    // 1.5 s
+    /// Let the exposure settle briefly after the camera starts
+    private let exposureSettleDelay: UInt64 = 400_000_000      // 0.4 s
     /// A photo that is nearly black is retried this many times, after `blackRetryDelay`
     private let blackPhotoRetries = 2
     private let blackRetryDelay: UInt64 = 1_000_000_000        // 1 s
