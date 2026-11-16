@@ -14,7 +14,7 @@ configFiles:
 packages:
   meta-wearables-dat-ios:
     url: https://github.com/facebook/meta-wearables-dat-ios
-    exactVersion: "1.0.0"  # test: match the DAT version on the glasses (1.0.0.0.0)
+    from: "1.0.1"        # officially supports Ray-Ban Meta Gen 1 and Gen 2
 
 targets:
   RayBanClaude:
@@ -37,7 +37,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: $(RAYBANCLAUDE_BUNDLE_ID)
         PRODUCT_NAME: RayBanClaude
         MARKETING_VERSION: "2.1.0"
-        CURRENT_PROJECT_VERSION: "9"
+        CURRENT_PROJECT_VERSION: "10"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
