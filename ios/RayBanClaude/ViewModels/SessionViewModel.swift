@@ -281,6 +281,9 @@ final class SessionViewModel: ObservableObject {
         speechManager.onSpeechPause = { [weak self] text in
             Task { await self?.handleUserSpeech(text) }
         }
+        speechManager.onVoiceNote = { [weak self] note in
+            self?.transcript.append(TranscriptMessage(role: .system, text: "🔈 [build \(Self.buildNumber)] \(note)"))
+        }
         speechManager.onWakeWord = { [weak self] in
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             self?.state = .listening
@@ -739,15 +742,27 @@ final class SessionViewModel: ObservableObject {
     private func handleReply(_ reply: ClaudeBridge.Reply) {
         transcript.append(TranscriptMessage(id: reply.id, role: .assistant, text: reply.text, attachments: reply.attachments))
         finishProcessing()
-        speak(reply.text, audioPath: reply.audioPath)
+        if reply.audioPath == nil && reply.audioData == nil {
+            transcript.append(TranscriptMessage(role: .system, text: "🔈 [build \(Self.buildNumber)] The PC sent no voice audio – using the iPhone voice"))
+        }
+        speak(reply.text, audioPath: reply.audioPath, audioData: reply.audioData)
     }
 
-    private func speak(_ text: String, audioPath: String?) {
+    private static var buildNumber: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+    }
+
+    private func speak(_ text: String, audioPath: String?, audioData: Data? = nil) {
         speechManager.stopListening()
         state = .speaking
-        if let audioPath, let request = bridge.fileRequest(audioPath) {
+        if let audioData {
+            speechManager.playAudioData(audioData)
+        } else if let audioPath, let request = bridge.fileRequest(audioPath) {
             speechManager.playRemoteAudio(request: request, fallbackText: text)
         } else {
+            if let audioPath {
+                transcript.append(TranscriptMessage(role: .system, text: "🔈 Could not build the voice audio address (\(audioPath)) – using the iPhone voice"))
+            }
             speechManager.speak(text)
         }
     }

@@ -212,7 +212,7 @@ interface Attachment { readonly name: string; readonly url: string }
 type WireOut =
   | { readonly type: 'status'; readonly status: 'connected'; readonly version: string; readonly tts: boolean }
   | { readonly type: 'ack'; readonly id: string }
-  | { readonly type: 'reply'; readonly id: string; readonly text: string; readonly audio_url?: string; readonly reply_to?: string; readonly files?: readonly Attachment[] }
+  | { readonly type: 'reply'; readonly id: string; readonly text: string; readonly audio_url?: string; readonly audio_b64?: string; readonly reply_to?: string; readonly files?: readonly Attachment[] }
   | { readonly type: 'edit'; readonly id: string; readonly text: string; readonly audio_url?: string }
   | { readonly type: 'capture_request'; readonly id: string; readonly reason?: string }
   | { readonly type: 'permission_request'; readonly request_id: string; readonly tool_name: string; readonly description: string; readonly input_preview: string }
@@ -342,6 +342,7 @@ async function generateTTS(text: string): Promise<string | undefined> {
     })
     if (!resp.ok) {
       log(`TTS error: HTTP ${resp.status} – the app uses the iPhone voice instead`)
+      logActivity({ direction: 'out', source: 'audio', text: `🔇 ElevenLabs failed (HTTP ${resp.status}) – the app uses the iPhone voice` })
       return undefined
     }
     mkdirSync(OUTBOX_DIR, { recursive: true })
@@ -350,6 +351,7 @@ async function generateTTS(text: string): Promise<string | undefined> {
     return `/files/${name}`
   } catch (e) {
     log(`TTS error: ${errorText(e)} – the app uses the iPhone voice instead`)
+    logActivity({ direction: 'out', source: 'audio', text: `🔇 ElevenLabs failed (${errorText(e)}) – the app uses the iPhone voice` })
     return undefined
   }
 }
@@ -484,7 +486,9 @@ const TOOL_HANDLERS: Readonly<Record<string, (args: ToolArgs) => Promise<ToolRes
     const files = stageAttachments(args.files)
     const audioUrl = await generateTTS(text)
     const replyTo = isValidId(args.reply_to) ? args.reply_to : undefined
-    const sent = broadcast({ type: 'reply', id, text, audio_url: audioUrl, reply_to: replyTo, files: files.length ? files : undefined })
+    // The audio also travels inside the reply: the WebSocket works on every network setup, while a separate HTTP download can be blocked on the iPhone (App Transport Security)
+    const audioB64 = audioUrl ? readFileSync(join(OUTBOX_DIR, audioUrl.slice(FILES_PREFIX.length))).toString('base64') : undefined
+    const sent = broadcast({ type: 'reply', id, text, audio_url: audioUrl, audio_b64: audioB64, reply_to: replyTo, files: files.length ? files : undefined })
     logActivity({ direction: 'out', source: 'claude', text })
     saveHistory('claude', text)
     log(`→ Reply to ${sent} app(s): ${preview(text)}`)
@@ -869,6 +873,7 @@ function handleFile({ url }: Ctx): Response {
   if (!RX.FILE_NAME.test(name) || name.includes('..')) return fail(C.HTTP_BAD_REQUEST, 'Invalid file name')
   const path = join(OUTBOX_DIR, name)
   if (!existsSync(path)) return fail(C.HTTP_NOT_FOUND, 'File not found')
+  if (name.startsWith('tts-')) logActivity({ direction: 'out', source: 'audio', text: `🔊 voice audio downloaded by the app (${name})` })
   return new Response(readFileSync(path), { headers: secHeaders({ 'Content-Type': MIME[extname(name).toLowerCase()] ?? DEFAULT_MIME }) })
 }
 

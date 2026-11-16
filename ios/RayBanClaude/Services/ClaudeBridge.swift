@@ -27,6 +27,8 @@ final class ClaudeBridge: NSObject, ObservableObject {
         let id: String
         let text: String
         let audioPath: String?
+        /// The voice audio itself (MP3), when the PC sent it inside the reply
+        let audioData: Data?
         let replyTo: String?
         let attachments: [Attachment]
     }
@@ -250,6 +252,7 @@ final class ClaudeBridge: NSObject, ObservableObject {
                 id: json["id"] as? String ?? UUID().uuidString,
                 text: json["text"] as? String ?? "",
                 audioPath: json["audio_url"] as? String,
+                audioData: (json["audio_b64"] as? String).flatMap { Data(base64Encoded: $0) },
                 replyTo: json["reply_to"] as? String,
                 attachments: files
             ))
