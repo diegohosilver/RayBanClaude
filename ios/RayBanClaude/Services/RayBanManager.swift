@@ -124,8 +124,14 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     private let streamReadyTimeout: TimeInterval = 15
     /// Camera restart on the running session – then fall back: rebuild the session
     private let cameraRestartTimeout: TimeInterval = 8
-    /// Let the exposure settle briefly after the camera starts
-    private let exposureSettleDelay: UInt64 = 400_000_000      // 0.4 s
+    /// Let the exposure settle after the camera starts (0.4 s was too short: photos came out black)
+    private let exposureSettleDelay: UInt64 = 1_500_000_000    // 1.5 s
+    /// A photo that is nearly black is retried this many times, after `blackRetryDelay`
+    private let blackPhotoRetries = 2
+    private let blackRetryDelay: UInt64 = 1_000_000_000        // 1 s
+    /// Average brightness (0–255) below which an image counts as black
+    private static let blackLuminanceThreshold = 6
+    private static let luminanceProbeSize = 8
     private let pollInterval: UInt64 = 100_000_000             // 0.1 s
     /// Only attach inputs once the glasses are really connected (wait at most this long)
     private let deviceArrivalTimeout: TimeInterval = 10
@@ -258,9 +264,36 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
             try? await Task.sleep(nanoseconds: exposureSettleDelay)
         }
         idleStopTask?.cancel()
-        let photo = await takePhoto()
+        var photo = await takePhoto()
+        var attempt = 0
+        while let data = photo, Self.isNearlyBlack(data), attempt < blackPhotoRetries {
+            attempt += 1
+            print("[Glasses] Photo is black – retry \(attempt)/\(blackPhotoRetries)")
+            try? await Task.sleep(nanoseconds: blackRetryDelay)
+            photo = await takePhoto()
+        }
         scheduleIdleStop()
         return photo
+    }
+
+    /// True if the JPEG is (almost) completely black. Undecodable data counts as not black.
+    private static func isNearlyBlack(_ data: Data) -> Bool {
+        guard let cgImage = UIImage(data: data)?.cgImage else { return false }
+        let side = luminanceProbeSize
+        var pixels = [UInt8](repeating: 0, count: side * side)
+        let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress, width: side, height: side, bitsPerComponent: 8,
+                bytesPerRow: side, space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGImageAlphaInfo.none.rawValue
+            ) else { return false }
+            context.interpolationQuality = .medium
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+            return true
+        }
+        guard drawn else { return false }
+        let average = pixels.reduce(0) { $0 + Int($1) } / pixels.count
+        return average < blackLuminanceThreshold
     }
 
     /// Start the camera and wait for the stream. If it doesn't restart on the continuing session
@@ -324,6 +357,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
                 self?.resolvePhoto(nil)
             }
         }
+        // A photo from the glasses wins; the video frame is only the fallback
         return photo ?? latestFrame
     }
 
