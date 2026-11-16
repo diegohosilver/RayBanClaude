@@ -30,6 +30,13 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     // MARK: FrameSource
 
     @Published private(set) var latestFrame: Data?
+    /// Diagnostic messages for the transcript (stream state, frames, photo sizes)
+    var onNote: ((String) -> Void)?
+    private var droppedFrames = 0
+    private func note(_ text: String) {
+        print("[Glasses] \(text)")
+        onNote?(text)
+    }
     @Published private(set) var latestImage: UIImage?
     @Published private(set) var isRunning: Bool = false
     @Published private(set) var connectionStatus: FrameSourceStatus = .disconnected
@@ -268,11 +275,14 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
         var attempt = 0
         while let data = photo, Self.isNearlyBlack(data), attempt < blackPhotoRetries {
             attempt += 1
-            print("[Glasses] Photo is black – retry \(attempt)/\(blackPhotoRetries)")
+            note("photo is black (\(data.count) bytes) – retry \(attempt)/\(blackPhotoRetries)")
             try? await Task.sleep(nanoseconds: blackRetryDelay)
             photo = await takePhoto()
         }
         scheduleIdleStop()
+        let photoInfo = photo.map { data in "\(data.count) bytes, black=\(Self.isNearlyBlack(data))" } ?? "none"
+        let streamInfo = camera.map { cam in "\(cam.stream.state)" } ?? "no camera"
+        note("photo result: \(photoInfo); video frames=\(frameCount), dropped=\(droppedFrames), stream=\(streamInfo)")
         return photo
     }
 
@@ -522,7 +532,14 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
 
         stream.videoFramePublisher.listen { [weak self, gate] frame in
             // Conversion off the main thread, only the result goes to the UI
-            guard let image = frame.makeUIImage() else { return }
+            guard let image = frame.makeUIImage() else {
+                Task { @MainActor [weak self] in
+                    guard let self, self.camera === cam else { return }
+                    self.droppedFrames += 1
+                    if self.droppedFrames == 1 { self.note("video frame could not be converted to an image") }
+                }
+                return
+            }
             let jpeg = gate.jpegIfDue(image)
             Task { @MainActor [weak self] in
                 guard let self, self.camera === cam else { return }
@@ -549,6 +566,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
     }
 
     private func handle(state: StreamState) {
+        note("stream state: \(state)")
         switch state {
         case .streaming:
             isRunning = true
@@ -578,7 +596,7 @@ final class RayBanManager: NSObject, ObservableObject, FrameSource {
             return // Stream keeps running
         }
         let message = describe(error)
-        print("[Glasses] Error: \(message)")
+        note("stream error: \(message)")
         failCamera(message)
     }
 

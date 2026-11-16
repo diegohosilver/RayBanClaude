@@ -284,6 +284,9 @@ final class SessionViewModel: ObservableObject {
         speechManager.onVoiceNote = { [weak self] note in
             self?.transcript.append(TranscriptMessage(role: .system, text: "🔈 [build \(Self.buildNumber)] \(note)"))
         }
+        rayBanManager.onNote = { [weak self] note in
+            self?.transcript.append(TranscriptMessage(role: .system, text: "👓 [build \(Self.buildNumber)] \(note)"))
+        }
         speechManager.onWakeWord = { [weak self] in
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             self?.state = .listening
